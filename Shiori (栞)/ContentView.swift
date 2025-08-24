@@ -299,6 +299,18 @@ struct ContentView: View {
                                             .fontWeight(.semibold)
                                             .lineLimit(3)
                                             .fixedSize(horizontal: false, vertical: true)
+                                        
+                                        if let author = book.author {
+                                            Text("Author: \(author)")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        if let pageCount = book.pageCount {
+                                            Text("Pages: \(pageCount)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 }
