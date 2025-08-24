@@ -214,7 +214,7 @@ struct ContentView: View {
                                 searchText = ""
                                 selectedPlatform = "Select Platform"
                                 results = []
-                                isSearchBarVisible = true
+                                // Keep current search bar visibility state
                             }) {
                                 Image(systemName: "arrow.left")
                                     .foregroundColor(.blue)
@@ -336,6 +336,7 @@ struct ContentView: View {
                     }
                     .disabled(isDragging)
                     .simultaneousGesture(
+                        !isDragging ? 
                         DragGesture()
                             .onChanged { value in
                                 let translation = value.translation.height
@@ -347,6 +348,7 @@ struct ContentView: View {
                                     }
                                 }
                             }
+                        : nil
                     )
                 }
                 
@@ -380,7 +382,7 @@ struct ContentView: View {
                                     searchText = ""
                                     selectedPlatform = "Select Platform"
                                     results = []
-                                    isSearchBarVisible = true
+                                    // Keep current search bar visibility state
                                     dragOffset = 0
                                     isDragging = false
                                 }
