@@ -78,6 +78,9 @@ struct ContentView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     
+    // Navigation states
+    @State private var selectedBook: Book?
+    
     var body: some View {
         TabView {
             // Home Tab
@@ -314,6 +317,9 @@ struct ContentView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 }
+                                .onTapGesture {
+                                    selectedBook = book
+                                }
                                 .padding(.horizontal)
                                 .padding(.vertical, 8)
                                 Divider()
@@ -410,6 +416,9 @@ struct ContentView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(alertMessage)
+            }
+            .fullScreenCover(item: $selectedBook) { book in
+                BookDetailView(book: book, searchResults: results)
             }
             .tabItem {
                 Image(systemName: "house")
