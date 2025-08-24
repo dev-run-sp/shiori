@@ -22,7 +22,7 @@ class SearchViewModel: ObservableObject {
                 books = try bookElements.map { element in
                     let title = try element.text()
                     let thumbnailUrl = try element.parent()?.select("img").first()?.attr("src") ?? ""
-                    return Book(title: title, thumbnailUrl: thumbnailUrl)
+                    return Book(title: title, thumbnailUrl: thumbnailUrl, author: nil, pageCount: nil)
                 }
             }
         } catch {
