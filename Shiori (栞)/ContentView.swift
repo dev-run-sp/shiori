@@ -304,6 +304,36 @@ struct ContentView: View {
                                 .onTapGesture {
                                     selectedBook = book
                                 }
+                                .contextMenu(menuItems: {
+                                    Button(action: {
+                                        selectedBook = book
+                                    }) {
+                                        Label("View Details", systemImage: "book.fill")
+                                    }
+                                    
+                                    Button(action: {
+                                        // Quick add to Want to Read
+                                        // You can implement this action
+                                    }) {
+                                        Label("Add to Want to Read", systemImage: "bookmark")
+                                    }
+                                    
+                                    Button(action: {
+                                        // Quick add to Currently Reading
+                                        // You can implement this action
+                                    }) {
+                                        Label("Mark as Currently Reading", systemImage: "book.circle")
+                                    }
+                                    
+                                    Button(action: {
+                                        // Quick add to Finished
+                                        // You can implement this action
+                                    }) {
+                                        Label("Mark as Finished", systemImage: "checkmark.circle")
+                                    }
+                                }, preview: {
+                                    BookPreviewView(book: book)
+                                })
                                 .padding(.horizontal)
                                 .padding(.vertical, 8)
                                 Divider()

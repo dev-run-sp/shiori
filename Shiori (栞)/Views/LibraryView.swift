@@ -148,6 +148,29 @@ struct SeriesRow: View {
         .onTapGesture {
             onTap()
         }
+        .contextMenu(menuItems: {
+            Button(action: {
+                onTap()
+            }) {
+                Label("View Series", systemImage: "books.vertical.fill")
+            }
+            
+            Button(action: {
+                // Mark all as read action
+                // You can implement this action
+            }) {
+                Label("Mark All as Read", systemImage: "checkmark.circle.fill")
+            }
+            
+            Button(action: {
+                // Export series action
+                // You can implement this action
+            }) {
+                Label("Export Series", systemImage: "square.and.arrow.up")
+            }
+        }, preview: {
+            SeriesPreviewView(series: series)
+        })
     }
     
     private var dateFormatter: DateFormatter {
