@@ -82,7 +82,7 @@ struct SeriesBookRow: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            // Book thumbnail
+            // Book thumbnail with context menu
             AsyncImage(url: URL(string: savedBook.thumbnailUrl)) { image in
                 image
                     .resizable()
@@ -100,6 +100,29 @@ struct SeriesBookRow: View {
                             .foregroundColor(.gray.opacity(0.6))
                     )
             }
+            .contextMenu(menuItems: {
+                Button(action: {
+                    onTap()
+                }) {
+                    Label("View Details", systemImage: "book.fill")
+                }
+                
+                Button(action: {
+                    // Change reading status action
+                    // You can implement this action
+                }) {
+                    Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
+                }
+                
+                Button(action: {
+                    // Remove from library action
+                    // You can implement this action
+                }) {
+                    Label("Remove from Library", systemImage: "trash")
+                }
+            }, preview: {
+                BookPreviewView(book: savedBook.toBook())
+            })
             
             VStack(alignment: .leading, spacing: 6) {
                 // Title and author

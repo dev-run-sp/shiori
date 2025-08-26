@@ -10,6 +10,7 @@
 		171B53A62E54107F002A72FB /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 171B53A52E54107F002A72FB /* SwiftSoup */; };
 		171B53AC2E558F40002A72FB /* Color+Custom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171B53A92E558F40002A72FB /* Color+Custom.swift */; };
 		17B002612E5D501A00DC2609 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 17B002602E5D501A00DC2609 /* GRDB */; };
+		17B003732E5E091600DC2609 /* ForceTouchModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B003722E5E091600DC2609 /* ForceTouchModifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +35,7 @@
 		171B537D2E53A6BB002A72FB /* Shiori (栞)Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Shiori (栞)Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		171B53872E53A6BB002A72FB /* Shiori (栞)UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Shiori (栞)UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		171B53A92E558F40002A72FB /* Color+Custom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Custom.swift"; sourceTree = "<group>"; };
+		17B003722E5E091600DC2609 /* ForceTouchModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForceTouchModifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -106,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				171B53A92E558F40002A72FB /* Color+Custom.swift */,
+				17B003722E5E091600DC2609 /* ForceTouchModifier.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -269,6 +272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				171B53AC2E558F40002A72FB /* Color+Custom.swift in Sources */,
+				17B003732E5E091600DC2609 /* ForceTouchModifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -439,7 +443,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -469,7 +473,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
