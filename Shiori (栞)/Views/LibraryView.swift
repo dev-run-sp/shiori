@@ -8,6 +8,8 @@ struct LibraryView: View {
     let bookType: BookType
     @State private var seriesData: [SeriesData] = []
     @State private var selectedSeries: SeriesData?
+    @State private var showingConfirmation = false
+    @State private var confirmationAction: (() -> Void)?
     
     var body: some View {
         NavigationView {
@@ -35,9 +37,18 @@ struct LibraryView: View {
                     // Series list
                     List {
                         ForEach(seriesData, id: \.seriesName) { series in
-                            SeriesRow(series: series) {
-                                selectedSeries = series
-                            }
+                            SeriesRow(
+                                series: series,
+                                onTap: {
+                                    selectedSeries = series
+                                },
+                                onMarkAllAsRead: { series in
+                                    markAllAsRead(in: series)
+                                },
+                                onExport: { series in
+                                    exportSeries(series)
+                                }
+                            )
                             .listRowBackground(Color.customBackground)
                         }
                     }
@@ -56,6 +67,14 @@ struct LibraryView: View {
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
                 loadSeries()
             }
+            .alert("Are you sure?", isPresented: $showingConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Mark All as Read", role: .destructive) {
+                    confirmationAction?()
+                }
+            } message: {
+                Text("This will mark all books in this series as finished.")
+            }
             .background(Color.customBackground)
         }
     }
@@ -72,15 +91,63 @@ struct LibraryView: View {
         seriesData = DatabaseManager.shared.getSeries(by: bookType)
         print("DEBUG: LibraryView loaded \(seriesData.count) series for \(bookType.rawValue)")
     }
+    
+    private func markAllAsRead(in series: SeriesData) {
+        confirmationAction = {
+            let booksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+            
+            for book in booksInSeries {
+                if book.readingStatus != .finished, let bookId = book.id {
+                    DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
+                }
+            }
+            
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
+            loadSeries()
+        }
+        showingConfirmation = true
+    }
+    
+    private func exportSeries(_ series: SeriesData) {
+        let booksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        
+        var exportText = "Series: \(series.seriesName)\n"
+        exportText += "Type: \(series.bookType.rawValue)\n"
+        exportText += "Total Books: \(series.bookCount)\n"
+        exportText += "Completed: \(series.completedCount)\n\n"
+        
+        for book in booksInSeries {
+            exportText += "• \(book.title)"
+            if let author = book.author {
+                exportText += " by \(author)"
+            }
+            exportText += " [\(book.readingStatus.rawValue)]"
+            if let pages = book.pageCount {
+                exportText += " - \(pages) pages"
+            }
+            exportText += "\n"
+        }
+        
+        let activityController = UIActivityViewController(activityItems: [exportText], applicationActivities: nil)
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            rootViewController.present(activityController, animated: true)
+        }
+    }
 }
 
 struct SeriesRow: View {
     let series: SeriesData
     let onTap: () -> Void
+    let onMarkAllAsRead: (SeriesData) -> Void
+    let onExport: (SeriesData) -> Void
     
-    init(series: SeriesData, onTap: @escaping () -> Void) {
+    init(series: SeriesData, onTap: @escaping () -> Void, onMarkAllAsRead: @escaping (SeriesData) -> Void, onExport: @escaping (SeriesData) -> Void) {
         self.series = series
         self.onTap = onTap
+        self.onMarkAllAsRead = onMarkAllAsRead
+        self.onExport = onExport
         print("DEBUG: SeriesRow created with: '\(series.seriesName)', \(series.bookCount) books, status: '\(series.displayStatus)'")
     }
     
@@ -156,15 +223,13 @@ struct SeriesRow: View {
             }
             
             Button(action: {
-                // Mark all as read action
-                // You can implement this action
+                onMarkAllAsRead(series)
             }) {
                 Label("Mark All as Read", systemImage: "checkmark.circle.fill")
             }
             
             Button(action: {
-                // Export series action
-                // You can implement this action
+                onExport(series)
             }) {
                 Label("Export Series", systemImage: "square.and.arrow.up")
             }
