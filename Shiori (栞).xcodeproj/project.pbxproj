@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		171B53A62E54107F002A72FB /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 171B53A52E54107F002A72FB /* SwiftSoup */; };
 		171B53AC2E558F40002A72FB /* Color+Custom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171B53A92E558F40002A72FB /* Color+Custom.swift */; };
+		17B002612E5D501A00DC2609 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 17B002602E5D501A00DC2609 /* GRDB */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				171B53A62E54107F002A72FB /* SwiftSoup in Frameworks */,
+				17B002612E5D501A00DC2609 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,6 +139,7 @@
 			name = "Shiori (栞)";
 			packageProductDependencies = (
 				171B53A52E54107F002A72FB /* SwiftSoup */,
+				17B002602E5D501A00DC2609 /* GRDB */,
 			);
 			productName = "My Test App";
 			productReference = 171B53702E53A6BA002A72FB /* Shiori (栞).app */;
@@ -222,6 +225,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				171B53A42E54107F002A72FB /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				17B0025F2E5D501A00DC2609 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 171B53712E53A6BA002A72FB /* Products */;
@@ -601,6 +605,14 @@
 				minimumVersion = 2.10.3;
 			};
 		};
+		17B0025F2E5D501A00DC2609 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -608,6 +620,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 171B53A42E54107F002A72FB /* XCRemoteSwiftPackageReference "SwiftSoup" */;
 			productName = SwiftSoup;
+		};
+		17B002602E5D501A00DC2609 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17B0025F2E5D501A00DC2609 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

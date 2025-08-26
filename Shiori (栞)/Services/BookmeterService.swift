@@ -36,8 +36,9 @@ class BookmeterService {
         let bookElements = try document.select("li.group__book")
         
         return try bookElements.compactMap { element -> Book? in
-            let thumbnail = try element.select("div.book__thumbnail img").first()?.attr("src") ?? ""
-            let title = try element.select("div.book__detail div.detail__title a").first()?.text() ?? ""
+            let thumbnailImg = try element.select("div.book__thumbnail img").first()
+            let thumbnail = try thumbnailImg?.attr("src") ?? ""
+            let title = try thumbnailImg?.attr("alt") ?? ""
             
             // Extract author from detail__authors ul class in book__detail
             let authorElement = try element.select("div.book__detail ul.detail__authors li").first()

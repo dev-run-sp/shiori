@@ -7,12 +7,6 @@
 
 import SwiftUI
 
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
 
 struct ContentView: View {
     private func searchBooks(reset: Bool) async {
@@ -22,8 +16,6 @@ struct ContentView: View {
             hasMorePages = true
             isInitialLoading = true
             showingSearchResults = true
-            isSearchBarVisible = true
-            lastScrollOffset = 0
         }
         
         guard !isLoading && hasMorePages else { return }
@@ -70,9 +62,6 @@ struct ContentView: View {
     @State private var hasMorePages = true
     @State private var showingSearchResults = false
     
-    // Search bar visibility states
-    @State private var isSearchBarVisible = true
-    @State private var lastScrollOffset: CGFloat = 0
     
     // Swipe back states
     @State private var dragOffset: CGFloat = 0
@@ -210,51 +199,46 @@ struct ContentView: View {
                     .shadow(radius: 5)
                 } else {
                     // Compact Search View
-                    if isSearchBarVisible {
-                        HStack(spacing: 12) {
-                            Button(action: {
-                                showingSearchResults = false
-                                searchText = ""
-                                selectedPlatform = "Select Platform"
-                                results = []
-                                // Keep current search bar visibility state
-                            }) {
-                                Image(systemName: "arrow.left")
-                                    .foregroundColor(.blue)
-                            }
-                            
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.gray)
-                                TextField("Search for books...", text: $searchText)
-                                    .textFieldStyle(CustomTextFieldStyle())
-                            }
-                            
-                            Button(action: {
-                                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    alertMessage = "Please enter a search term"
-                                    showingAlert = true
-                                } else {
-                                    Task {
-                                        await searchBooks(reset: true)
-                                    }
-                                }
-                            }) {
-                                Text("Search")
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(6)
-                            }
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            showingSearchResults = false
+                            searchText = ""
+                            selectedPlatform = "Select Platform"
+                            results = []
+                        }) {
+                            Image(systemName: "arrow.left")
+                                .foregroundColor(.blue)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .background(Color.customBackground)
-                        .shadow(radius: 2)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchBarVisible)
+                        
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.gray)
+                            TextField("Search for books...", text: $searchText)
+                                .textFieldStyle(CustomTextFieldStyle())
+                        }
+                        
+                        Button(action: {
+                            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                alertMessage = "Please enter a search term"
+                                showingAlert = true
+                            } else {
+                                Task {
+                                    await searchBooks(reset: true)
+                                }
+                            }
+                        }) {
+                            Text("Search")
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(6)
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.customBackground)
+                    .shadow(radius: 2)
                 }
                 
                 // Loading Indicator
@@ -353,21 +337,6 @@ struct ContentView: View {
                         }
                     }
                     .disabled(isDragging)
-                    .simultaneousGesture(
-                        !isDragging ? 
-                        DragGesture()
-                            .onChanged { value in
-                                let translation = value.translation.height
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    if translation < -30 && isSearchBarVisible {
-                                        isSearchBarVisible = false
-                                    } else if translation > 30 && !isSearchBarVisible {
-                                        isSearchBarVisible = true
-                                    }
-                                }
-                            }
-                        : nil
-                    )
                 }
                 
                 Spacer()
@@ -400,7 +369,6 @@ struct ContentView: View {
                                     searchText = ""
                                     selectedPlatform = "Select Platform"
                                     results = []
-                                    // Keep current search bar visibility state
                                     dragOffset = 0
                                     isDragging = false
                                 }
@@ -426,46 +394,25 @@ struct ContentView: View {
             }
 
             // English Books Tab
-            VStack {
-                Image(systemName: "book")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
-                Text("English Books")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.customBackground)
-            .tabItem {
-                Image(systemName: "book")
-                Text("English Books")
-            }
+            LibraryView(bookType: .english)
+                .tabItem {
+                    Image(systemName: "book")
+                    Text("English Books")
+                }
 
             // Japanese Books Tab
-            VStack {
-                Image(systemName: "text.book.closed")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
-                Text("Japanese Books")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.customBackground)
-            .tabItem {
-                Image(systemName: "text.book.closed")
-                Text("Japanese Books")
-            }
+            LibraryView(bookType: .japanese)
+                .tabItem {
+                    Image(systemName: "text.book.closed")
+                    Text("Japanese Books")
+                }
 
             // Japanese Manga Tab
-            VStack {
-                Image(systemName: "books.vertical.fill")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
-                Text("Japanese Manga")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.customBackground)
-            .tabItem {
-                Image(systemName: "books.vertical.fill")
-                Text("Japanese Manga")
-            }
+            LibraryView(bookType: .manga)
+                .tabItem {
+                    Image(systemName: "books.vertical.fill")
+                    Text("Japanese Manga")
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
