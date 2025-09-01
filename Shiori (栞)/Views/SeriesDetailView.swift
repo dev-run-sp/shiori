@@ -1,8 +1,34 @@
 import SwiftUI
 
+enum BookStatusFilter: String, CaseIterable {
+    case all = "All"
+    case wantToRead = "Want to Read"
+    case currentlyReading = "Currently Reading"
+    case finished = "Finished"
+    
+    var icon: String {
+        switch self {
+        case .all: return "books.vertical"
+        case .wantToRead: return "book"
+        case .currentlyReading: return "book.fill"
+        case .finished: return "checkmark.circle.fill"
+        }
+    }
+    
+    var readingStatus: ReadingStatus? {
+        switch self {
+        case .all: return nil
+        case .wantToRead: return .wantToRead
+        case .currentlyReading: return .currentlyReading
+        case .finished: return .finished
+        }
+    }
+}
+
 struct SeriesDetailView: View {
     let series: SeriesData
     @State private var booksInSeries: [SavedBook] = []
+    @State private var allBooksInSeries: [SavedBook] = []
     @State private var selectedBook: Book?
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
@@ -15,20 +41,65 @@ struct SeriesDetailView: View {
     @State private var isMultiSelectMode = false
     @State private var selectedBooks: Set<Int64> = []
     @State private var showingBulkSeriesSelection = false
+    @State private var selectedStatusFilter: BookStatusFilter = .all
     
     var body: some View {
         NavigationView {
             VStack {
+                // Filter picker
+                if !allBooksInSeries.isEmpty {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Filter by Status")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(BookStatusFilter.allCases, id: \.self) { filter in
+                                    Button(action: {
+                                        selectedStatusFilter = filter
+                                        applyFilter()
+                                    }) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: filter.icon)
+                                                .font(.caption)
+                                            Text(filter.rawValue)
+                                                .font(.subheadline)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(selectedStatusFilter == filter ? Color.blue : Color.gray.opacity(0.2))
+                                        .foregroundColor(selectedStatusFilter == filter ? .white : .primary)
+                                        .cornerRadius(16)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+                
                 if booksInSeries.isEmpty {
                     // Empty state
                     VStack(spacing: 20) {
-                        Image(systemName: "books.vertical")
+                        Image(systemName: selectedStatusFilter.icon)
                             .font(.system(size: 60))
                             .foregroundColor(.gray.opacity(0.6))
                         
-                        Text("No Books in Series")
+                        Text(emptyStateTitle)
                             .font(.title2)
                             .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text(emptyStateMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.customBackground)
@@ -186,7 +257,50 @@ struct SeriesDetailView: View {
     }
     
     private func loadBooksInSeries() {
-        booksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        applyFilter()
+    }
+    
+    private func applyFilter() {
+        if let targetStatus = selectedStatusFilter.readingStatus {
+            booksInSeries = allBooksInSeries.filter { $0.readingStatus == targetStatus }
+        } else {
+            booksInSeries = allBooksInSeries
+        }
+    }
+    
+    private var emptyStateTitle: String {
+        if allBooksInSeries.isEmpty {
+            return "No Books in Series"
+        } else {
+            switch selectedStatusFilter {
+            case .all:
+                return "No Books in Series"
+            case .wantToRead:
+                return "No Books to Read"
+            case .currentlyReading:
+                return "No Books Currently Reading"
+            case .finished:
+                return "No Finished Books"
+            }
+        }
+    }
+    
+    private var emptyStateMessage: String {
+        if allBooksInSeries.isEmpty {
+            return "Add some books to this series to see them here"
+        } else {
+            switch selectedStatusFilter {
+            case .all:
+                return "Add some books to this series to see them here"
+            case .wantToRead:
+                return "No books in this series are marked as 'Want to Read'"
+            case .currentlyReading:
+                return "No books in this series are currently being read"
+            case .finished:
+                return "No books in this series have been finished yet"
+            }
+        }
     }
     
     private func loadExistingSeries() {
