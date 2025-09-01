@@ -98,7 +98,7 @@ struct LibraryView: View {
             
             for book in booksInSeries {
                 if book.readingStatus != .finished, let bookId = book.id {
-                    DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
+                    _ = DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
                 }
             }
             

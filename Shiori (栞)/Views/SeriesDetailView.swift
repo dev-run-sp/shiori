@@ -254,7 +254,7 @@ struct SeriesDetailView: View {
         // Find the book in the current list to get its index for smooth animation
         if let bookIndex = booksInSeries.firstIndex(where: { $0.id == bookId }) {
             // Smooth deletion animation
-            withAnimation(.easeOut(duration: 0.4)) {
+            _ = withAnimation(.easeOut(duration: 0.4)) {
                 booksInSeries.remove(at: bookIndex)
             }
             
@@ -304,7 +304,7 @@ struct SeriesDetailView: View {
         let seriesValue = newSeriesName.isEmpty ? nil : newSeriesName
         
         for bookId in selectedBooks {
-            DatabaseManager.shared.updateBookSeries(bookId: bookId, series: seriesValue)
+            _ = DatabaseManager.shared.updateBookSeries(bookId: bookId, series: seriesValue)
         }
         
         loadBooksInSeries()
@@ -315,7 +315,7 @@ struct SeriesDetailView: View {
     
     private func bulkMarkAsRead() {
         for bookId in selectedBooks {
-            DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
+            _ = DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
         }
         
         loadBooksInSeries()
@@ -325,7 +325,7 @@ struct SeriesDetailView: View {
     
     private func bulkDelete() {
         for bookId in selectedBooks {
-            DatabaseManager.shared.deleteBook(bookId: bookId)
+            _ = DatabaseManager.shared.deleteBook(bookId: bookId)
         }
         
         loadBooksInSeries()
