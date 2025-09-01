@@ -190,6 +190,48 @@ class DatabaseManager {
         }
     }
     
+    func bookExists(title: String, author: String?) -> Bool {
+        do {
+            return try dbQueue.read { db in
+                if let author = author, !author.isEmpty {
+                    // Check with both title and author
+                    return try SavedBook
+                        .filter(Column("title") == title && Column("author") == author)
+                        .fetchCount(db) > 0
+                } else {
+                    // Check with title only
+                    return try SavedBook
+                        .filter(Column("title") == title)
+                        .fetchCount(db) > 0
+                }
+            }
+        } catch {
+            print("DEBUG: Failed to check if book exists: \(error)")
+            return false
+        }
+    }
+    
+    func getBook(byTitle title: String, author: String?) -> SavedBook? {
+        do {
+            return try dbQueue.read { db in
+                if let author = author, !author.isEmpty {
+                    // Search with both title and author
+                    return try SavedBook
+                        .filter(Column("title") == title && Column("author") == author)
+                        .fetchOne(db)
+                } else {
+                    // Search with title only
+                    return try SavedBook
+                        .filter(Column("title") == title)
+                        .fetchOne(db)
+                }
+            }
+        } catch {
+            print("DEBUG: Failed to get book: \(error)")
+            return nil
+        }
+    }
+    
     func getDatabasePath() -> String {
         let fileURL = try! FileManager.default
             .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
@@ -210,6 +252,7 @@ class DatabaseManager {
                         COUNT(*) as book_count,
                         SUM(CASE WHEN reading_status = 'Finished' THEN 1 ELSE 0 END) as completed_count,
                         SUM(CASE WHEN reading_status = 'Currently Reading' THEN 1 ELSE 0 END) as currently_reading_count,
+                        SUM(CASE WHEN reading_status = 'Want to Read' THEN 1 ELSE 0 END) as want_to_read_count,
                         MAX(date_finished) as last_read_date,
                         MAX(thumbnail_url) as thumbnail_url
                     FROM saved_books
@@ -228,13 +271,14 @@ class DatabaseManager {
                     let bookCount: Int = row["book_count"]
                     let completedCount: Int = row["completed_count"]
                     let currentlyReadingCount: Int = row["currently_reading_count"]
+                    let wantToReadCount: Int = row["want_to_read_count"]
                     let thumbnailUrl: String = row["thumbnail_url"] ?? ""
                     let lastReadDateString: String? = row["last_read_date"]
                     
                     let dateFormatter = ISO8601DateFormatter()
                     let lastReadDate = lastReadDateString != nil ? dateFormatter.date(from: lastReadDateString!) : nil
                     
-                    print("DEBUG: Found series: '\(seriesName)', \(bookCount) books, completed: \(completedCount), reading: \(currentlyReadingCount)")
+                    print("DEBUG: Found series: '\(seriesName)', \(bookCount) books, completed: \(completedCount), reading: \(currentlyReadingCount), want to read: \(wantToReadCount)")
                     
                     return SeriesData(
                         seriesName: seriesName,
@@ -242,6 +286,7 @@ class DatabaseManager {
                         bookCount: bookCount,
                         completedCount: completedCount,
                         currentlyReadingCount: currentlyReadingCount,
+                        wantToReadCount: wantToReadCount,
                         lastBookThumbnail: thumbnailUrl,
                         lastReadDate: lastReadDate
                     )

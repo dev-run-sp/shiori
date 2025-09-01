@@ -607,6 +607,7 @@ struct BulkSeriesSelectionSheet: View {
             bookCount: 3,
             completedCount: 2,
             currentlyReadingCount: 1,
+            wantToReadCount: 0,
             lastBookThumbnail: "",
             lastReadDate: Date()
         )

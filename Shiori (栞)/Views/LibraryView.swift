@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var selectedSeries: SeriesData?
     @State private var showingConfirmation = false
     @State private var confirmationAction: (() -> Void)?
+    @State private var showingBookmeterImport = false
     
     var body: some View {
         NavigationView {
@@ -58,11 +59,27 @@ struct LibraryView: View {
             }
             .navigationTitle("\(bookType.rawValue) Books")
             .navigationBarTitleDisplayMode(.large)
+            .navigationBarItems(
+                trailing: bookType == .manga ? 
+                    Button(action: {
+                        showingBookmeterImport = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.body)
+                            Text("Import")
+                                .font(.subheadline)
+                        }
+                    } : nil
+            )
             .onAppear {
                 loadSeries()
             }
             .fullScreenCover(item: $selectedSeries) { series in
                 SeriesDetailView(series: series)
+            }
+            .sheet(isPresented: $showingBookmeterImport) {
+                BookmeterImportView()
             }
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
                 loadSeries()
