@@ -7,6 +7,14 @@ struct SeriesDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
     @State private var bookToDelete: SavedBook?
+    @State private var existingSeries: [String] = []
+    @State private var showingSeriesSelection = false
+    @State private var showingNewSeriesAlert = false
+    @State private var newSeriesName = ""
+    @State private var bookToChangeSeries: SavedBook?
+    @State private var isMultiSelectMode = false
+    @State private var selectedBooks: Set<Int64> = []
+    @State private var showingBulkSeriesSelection = false
     
     var body: some View {
         NavigationView {
@@ -30,11 +38,20 @@ struct SeriesDetailView: View {
                         ForEach(booksInSeries, id: \.id) { savedBook in
                             SeriesBookRow(
                                 savedBook: savedBook,
+                                isMultiSelectMode: isMultiSelectMode,
+                                isSelected: selectedBooks.contains(savedBook.id ?? -1),
                                 onTap: {
-                                    selectedBook = savedBook.toBook()
+                                    if isMultiSelectMode {
+                                        toggleBookSelection(savedBook)
+                                    } else {
+                                        selectedBook = savedBook.toBook()
+                                    }
                                 },
                                 onChangeStatus: { book in
                                     changeReadingStatus(for: book)
+                                },
+                                onChangeSeries: { book in
+                                    changeBookSeries(book)
                                 },
                                 onRemove: { book in
                                     removeBookFromLibrary(book)
@@ -51,6 +68,40 @@ struct SeriesDetailView: View {
                     }
                     .listStyle(PlainListStyle())
                     .background(Color.customBackground)
+                    
+                    // Bulk actions toolbar
+                    if isMultiSelectMode && !selectedBooks.isEmpty {
+                        VStack(spacing: 0) {
+                            Divider()
+                            HStack(spacing: 20) {
+                                Text("\(selectedBooks.count) selected")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Button("Change Series") {
+                                    showingBulkSeriesSelection = true
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                                
+                                Button("Mark as Read") {
+                                    bulkMarkAsRead()
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.green)
+                                
+                                Button("Delete") {
+                                    bulkDelete()
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.red)
+                            }
+                            .padding()
+                            .background(Color(UIColor.systemBackground))
+                        }
+                    }
                 }
             }
             .navigationTitle(series.seriesName)
@@ -58,10 +109,22 @@ struct SeriesDetailView: View {
             .navigationBarItems(
                 leading: Button("Done") {
                     dismiss()
+                },
+                trailing: HStack {
+                    if isMultiSelectMode {
+                        Button("Cancel") {
+                            exitMultiSelectMode()
+                        }
+                    } else {
+                        Button("Select") {
+                            enterMultiSelectMode()
+                        }
+                    }
                 }
             )
             .onAppear {
                 loadBooksInSeries()
+                loadExistingSeries()
             }
             .fullScreenCover(item: $selectedBook) { book in
                 BookDetailView(book: book, searchResults: [])
@@ -79,12 +142,61 @@ struct SeriesDetailView: View {
             } message: {
                 Text("Are you sure you want to remove '\(bookToDelete?.title ?? "this book")' from your library?")
             }
+            .alert("Add New Series", isPresented: $showingNewSeriesAlert) {
+                TextField("Series Name", text: $newSeriesName)
+                Button("Add") {
+                    if !newSeriesName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        let seriesName = newSeriesName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        moveBookToSeries(seriesName)
+                        newSeriesName = ""
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    newSeriesName = ""
+                }
+            } message: {
+                Text("Enter the name for the new series")
+            }
+            .sheet(isPresented: $showingSeriesSelection) {
+                SeriesSelectionSheet(
+                    existingSeries: existingSeries,
+                    currentSeries: bookToChangeSeries?.series ?? "",
+                    onSelectSeries: { selectedSeries in
+                        moveBookToSeries(selectedSeries)
+                    },
+                    onCreateNewSeries: {
+                        showingNewSeriesAlert = true
+                    }
+                )
+            }
+            .sheet(isPresented: $showingBulkSeriesSelection) {
+                BulkSeriesSelectionSheet(
+                    existingSeries: existingSeries,
+                    selectedCount: selectedBooks.count,
+                    onSelectSeries: { selectedSeries in
+                        bulkMoveToSeries(selectedSeries)
+                    },
+                    onCreateNewSeries: {
+                        showingNewSeriesAlert = true
+                    }
+                )
+            }
             .background(Color.customBackground)
         }
     }
     
     private func loadBooksInSeries() {
         booksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+    }
+    
+    private func loadExistingSeries() {
+        let allSeries = DatabaseManager.shared.getSeries(by: .english) +
+                       DatabaseManager.shared.getSeries(by: .japanese) +
+                       DatabaseManager.shared.getSeries(by: .manga)
+        
+        existingSeries = Array(Set(allSeries.compactMap { series in
+            series.seriesName == "Standalone Books" ? nil : series.seriesName
+        })).sorted()
     }
     
     private func deleteBook(_ savedBook: SavedBook) {
@@ -111,6 +223,24 @@ struct SeriesDetailView: View {
                 NotificationCenter.default.post(name: .bookUpdated, object: nil)
             }
         }
+    }
+    
+    private func changeBookSeries(_ savedBook: SavedBook) {
+        bookToChangeSeries = savedBook
+        showingSeriesSelection = true
+    }
+    
+    private func moveBookToSeries(_ newSeriesName: String) {
+        guard let book = bookToChangeSeries, let bookId = book.id else { return }
+        
+        let seriesValue = newSeriesName.isEmpty ? nil : newSeriesName
+        if DatabaseManager.shared.updateBookSeries(bookId: bookId, series: seriesValue) {
+            loadBooksInSeries()
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        }
+        
+        bookToChangeSeries = nil
+        showingSeriesSelection = false
     }
     
     private func removeBookFromLibrary(_ savedBook: SavedBook) {
@@ -147,16 +277,81 @@ struct SeriesDetailView: View {
         bookToDelete = savedBook
         showingDeleteConfirmation = true
     }
+    
+    // MARK: - Multi-select Methods
+    
+    private func enterMultiSelectMode() {
+        isMultiSelectMode = true
+        selectedBooks.removeAll()
+    }
+    
+    private func exitMultiSelectMode() {
+        isMultiSelectMode = false
+        selectedBooks.removeAll()
+    }
+    
+    private func toggleBookSelection(_ savedBook: SavedBook) {
+        guard let bookId = savedBook.id else { return }
+        
+        if selectedBooks.contains(bookId) {
+            selectedBooks.remove(bookId)
+        } else {
+            selectedBooks.insert(bookId)
+        }
+    }
+    
+    private func bulkMoveToSeries(_ newSeriesName: String) {
+        let seriesValue = newSeriesName.isEmpty ? nil : newSeriesName
+        
+        for bookId in selectedBooks {
+            DatabaseManager.shared.updateBookSeries(bookId: bookId, series: seriesValue)
+        }
+        
+        loadBooksInSeries()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        exitMultiSelectMode()
+        showingBulkSeriesSelection = false
+    }
+    
+    private func bulkMarkAsRead() {
+        for bookId in selectedBooks {
+            DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: .finished)
+        }
+        
+        loadBooksInSeries()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        exitMultiSelectMode()
+    }
+    
+    private func bulkDelete() {
+        for bookId in selectedBooks {
+            DatabaseManager.shared.deleteBook(bookId: bookId)
+        }
+        
+        loadBooksInSeries()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        exitMultiSelectMode()
+    }
 }
 
 struct SeriesBookRow: View {
     let savedBook: SavedBook
+    let isMultiSelectMode: Bool
+    let isSelected: Bool
     let onTap: () -> Void
     let onChangeStatus: (SavedBook) -> Void
+    let onChangeSeries: (SavedBook) -> Void
     let onRemove: (SavedBook) -> Void
     
     var body: some View {
         HStack(spacing: 16) {
+            // Selection indicator in multi-select mode
+            if isMultiSelectMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(isSelected ? .blue : .gray)
+            }
+            
             // Book thumbnail with context menu
             AsyncImage(url: URL(string: savedBook.thumbnailUrl)) { image in
                 image
@@ -176,25 +371,35 @@ struct SeriesBookRow: View {
                     )
             }
             .contextMenu(menuItems: {
-                Button(action: {
-                    onTap()
-                }) {
-                    Label("View Details", systemImage: "book.fill")
-                }
-                
-                Button(action: {
-                    onChangeStatus(savedBook)
-                }) {
-                    Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
-                }
-                
-                Button(action: {
-                    onRemove(savedBook)
-                }) {
-                    Label("Remove from Library", systemImage: "trash")
+                if !isMultiSelectMode {
+                    Button(action: {
+                        onTap()
+                    }) {
+                        Label("View Details", systemImage: "book.fill")
+                    }
+                    
+                    Button(action: {
+                        onChangeStatus(savedBook)
+                    }) {
+                        Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    
+                    Button(action: {
+                        onChangeSeries(savedBook)
+                    }) {
+                        Label("Change Series", systemImage: "books.vertical")
+                    }
+                    
+                    Button(action: {
+                        onRemove(savedBook)
+                    }) {
+                        Label("Remove from Library", systemImage: "trash")
+                    }
                 }
             }, preview: {
-                BookPreviewView(book: savedBook.toBook())
+                if !isMultiSelectMode {
+                    BookPreviewView(book: savedBook.toBook())
+                }
             })
             
             VStack(alignment: .leading, spacing: 6) {
@@ -240,6 +445,156 @@ struct SeriesBookRow: View {
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()
+        }
+    }
+}
+
+struct SeriesSelectionSheet: View {
+    let existingSeries: [String]
+    let currentSeries: String
+    let onSelectSeries: (String) -> Void
+    let onCreateNewSeries: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                List {
+                    Section("Move to Series") {
+                        if existingSeries.isEmpty {
+                            Text("No existing series")
+                                .foregroundColor(.secondary)
+                        } else {
+                            ForEach(existingSeries.filter { $0 != currentSeries }, id: \.self) { series in
+                                Button(action: {
+                                    onSelectSeries(series)
+                                    dismiss()
+                                }) {
+                                    HStack {
+                                        Text(series)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Image(systemName: "arrow.right.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Button(action: {
+                            onSelectSeries("")
+                            dismiss()
+                        }) {
+                            HStack {
+                                Text("No Series (Standalone)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "minus.circle")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    dismiss()
+                    onCreateNewSeries()
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Create New Series")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green)
+                    .cornerRadius(12)
+                }
+                .padding()
+            }
+            .navigationTitle("Change Series")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Cancel") {
+                    dismiss()
+                }
+            )
+        }
+    }
+}
+
+struct BulkSeriesSelectionSheet: View {
+    let existingSeries: [String]
+    let selectedCount: Int
+    let onSelectSeries: (String) -> Void
+    let onCreateNewSeries: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                List {
+                    Section("Move \(selectedCount) book\(selectedCount == 1 ? "" : "s") to:") {
+                        if existingSeries.isEmpty {
+                            Text("No existing series")
+                                .foregroundColor(.secondary)
+                        } else {
+                            ForEach(existingSeries, id: \.self) { series in
+                                Button(action: {
+                                    onSelectSeries(series)
+                                    dismiss()
+                                }) {
+                                    HStack {
+                                        Text(series)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Image(systemName: "arrow.right.circle")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Button(action: {
+                            onSelectSeries("")
+                            dismiss()
+                        }) {
+                            HStack {
+                                Text("No Series (Standalone)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "minus.circle")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+                
+                Button(action: {
+                    dismiss()
+                    onCreateNewSeries()
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Create New Series")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green)
+                    .cornerRadius(12)
+                }
+                .padding()
+            }
+            .navigationTitle("Move Books")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Cancel") {
+                    dismiss()
+                }
+            )
         }
     }
 }

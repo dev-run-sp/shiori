@@ -221,27 +221,136 @@ struct BookDetailView: View {
                     }
                 } else {
                     // Saved book actions
-                    VStack(spacing: 12) {
-                        // Mark as finished button (only show if not already finished)
-                        if readingStatus != .finished {
-                            Button(action: {
-                                showingDatePicker = true
-                            }) {
+                    VStack(spacing: 16) {
+                        // Current status display and change status section
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Current Status:")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            
+                            // Current status card
+                            HStack(spacing: 12) {
+                                Image(systemName: readingStatus.icon)
+                                    .font(.title2)
+                                    .foregroundColor(readingStatus.color)
+                                Text(readingStatus.rawValue)
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
+                            .background(readingStatus.color.opacity(0.1))
+                            .cornerRadius(10)
+                            
+                            // Change status dropdown
+                            Menu {
+                                ForEach(ReadingStatus.allCases, id: \.self) { status in
+                                    if status != readingStatus {
+                                        Button {
+                                            if status == .finished {
+                                                showingDatePicker = true
+                                            } else {
+                                                changeReadingStatus(to: status)
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Image(systemName: status.icon)
+                                                Text(status.rawValue)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
                                 HStack(spacing: 10) {
-                                    Image(systemName: "checkmark.circle")
+                                    Image(systemName: "arrow.triangle.2.circlepath")
                                         .font(.body)
-                                    Text("Mark as Finished")
+                                    Text("Change Status")
                                         .font(.body)
                                         .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(.blue)
                                 .padding(.vertical, 16)
                                 .padding(.horizontal, 20)
-                                .background(.green)
+                                .background(Color.blue.opacity(0.1))
                                 .cornerRadius(12)
                             }
-                            .padding(.horizontal, 20)
                         }
+                        .padding(.horizontal, 20)
+                        
+                        // Series management section
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Series:")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            
+                            // Current series display
+                            HStack(spacing: 12) {
+                                Image(systemName: "books.vertical")
+                                    .font(.title2)
+                                    .foregroundColor(.secondary)
+                                Text(seriesName.isEmpty ? "No Series" : seriesName)
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                Spacer()
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                            
+                            // Change series dropdown
+                            Menu {
+                                if existingSeries.isEmpty {
+                                    Button("Add New Series") {
+                                        showingNewSeriesAlert = true
+                                    }
+                                } else {
+                                    ForEach(existingSeries, id: \.self) { series in
+                                        if series != seriesName {
+                                            Button(series) {
+                                                updateBookSeries(series)
+                                            }
+                                        }
+                                    }
+                                    Divider()
+                                    Button("Add New Series") {
+                                        showingNewSeriesAlert = true
+                                    }
+                                    if !seriesName.isEmpty {
+                                        Button("Remove from Series") {
+                                            updateBookSeries("")
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.body)
+                                    Text("Change Series")
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(.purple)
+                                .padding(.vertical, 16)
+                                .padding(.horizontal, 20)
+                                .background(Color.purple.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                        }
+                        .padding(.horizontal, 20)
                         
                         // Remove button
                         Button(action: {
@@ -435,6 +544,27 @@ struct BookDetailView: View {
             NotificationCenter.default.post(name: .bookUpdated, object: nil)
         } else {
             print("DEBUG: Failed to mark book as finished")
+        }
+    }
+    
+    private func changeReadingStatus(to newStatus: ReadingStatus) {
+        guard let savedBook = savedBook else { return }
+        
+        if DatabaseManager.shared.updateReadingStatus(bookId: savedBook.id!, status: newStatus) {
+            readingStatus = newStatus
+            checkIfBookSaved() // Refresh to get updated dates
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        }
+    }
+    
+    private func updateBookSeries(_ newSeries: String) {
+        guard let savedBook = savedBook else { return }
+        
+        let seriesValue = newSeries.isEmpty ? nil : newSeries
+        if DatabaseManager.shared.updateBookSeries(bookId: savedBook.id!, series: seriesValue) {
+            seriesName = newSeries
+            checkIfBookSaved() // Refresh the saved book data
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
         }
     }
     

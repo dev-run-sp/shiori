@@ -97,6 +97,23 @@ class DatabaseManager {
         }
     }
     
+    func updateBookSeries(bookId: Int64, series: String?) -> Bool {
+        print("DEBUG: updateBookSeries called for book ID: \(bookId), series: \(series ?? "nil")")
+        
+        do {
+            try dbQueue.write { db in
+                var savedBook = try SavedBook.fetchOne(db, key: bookId)!
+                savedBook.series = series
+                try savedBook.update(db)
+                print("DEBUG: Successfully updated book series")
+            }
+            return true
+        } catch {
+            print("DEBUG: Failed to update book series: \(error)")
+            return false
+        }
+    }
+    
     func getBooks(by bookType: BookType) -> [SavedBook] {
         print("DEBUG: getBooks() called for bookType: '\(bookType.rawValue)'")
         
