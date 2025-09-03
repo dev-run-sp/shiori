@@ -5,22 +5,10 @@ struct HomePageView: View {
     @State private var recentBooks: [SavedBook] = []
     @State private var currentlyReading: [SavedBook] = []
     @State private var selectedBook: Book?
-    @State private var showingSearchView = false
     @State private var showingExportImportView = false
     
-    // Search states
-    @State private var searchText = ""
-    @State private var selectedPlatform = "Select Platform"
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-    @State private var results: [Book] = []
-    @State private var isLoading = false
-    @State private var isInitialLoading = false
-    @State private var currentPage = 1
-    @State private var hasMorePages = true
-    
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Welcome Header
@@ -45,6 +33,27 @@ struct HomePageView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal)
                     }
+                    
+                    // Quick Actions Section
+                    HStack(spacing: 12) {
+                        NavigationLink(destination: SearchView()) {
+                            CompactQuickActionCardView(
+                                title: "Search",
+                                icon: "magnifyingglass",
+                                gradient: [.blue, .purple]
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        CompactQuickActionCard(
+                            title: "Export",
+                            icon: "arrow.up.doc",
+                            gradient: [.green, .teal]
+                        ) {
+                            showingExportImportView = true
+                        }
+                    }
+                    .padding(.horizontal)
                     
                     // Quick Stats Cards
                     if let stats = libraryStats {
@@ -136,39 +145,6 @@ struct HomePageView: View {
                         }
                     }
                     
-                    // Quick Actions Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Quick Actions")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                            .padding(.horizontal)
-                        
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 16) {
-                            QuickActionCard(
-                                title: "Search Books",
-                                subtitle: "Find new books to read",
-                                icon: "magnifyingglass",
-                                gradient: [.blue, .purple]
-                            ) {
-                                showingSearchView = true
-                            }
-                            
-                            QuickActionCard(
-                                title: "Export Library",
-                                subtitle: "Backup your collection",
-                                icon: "arrow.up.doc",
-                                gradient: [.green, .teal]
-                            ) {
-                                showingExportImportView = true
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
                     Spacer(minLength: 40)
                 }
                 .padding(.vertical)
@@ -194,23 +170,7 @@ struct HomePageView: View {
         .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
             loadData()
         }
-        .sheet(isPresented: $showingSearchView) {
-            NavigationView {
-                VStack {
-                    Text("Search functionality coming soon!")
-                        .font(.headline)
-                        .padding()
-                    
-                    Spacer()
-                }
-                .navigationTitle("Search Books")
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationBarItems(trailing: Button("Done") {
-                    showingSearchView = false
-                })
-            }
-        }
-        .fullScreenCover(item: $selectedBook) { book in
+        .navigationDestination(item: $selectedBook) { book in
             BookDetailView(book: book, searchResults: [])
         }
         .sheet(isPresented: $showingExportImportView) {
@@ -457,6 +417,70 @@ struct QuickActionCard: View {
             .shadow(color: gradient.first?.opacity(0.3) ?? .clear, radius: 8, x: 0, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct CompactQuickActionCard: View {
+    let title: String
+    let icon: String
+    let gradient: [Color]
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(.white)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(
+                    colors: gradient,
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: gradient.first?.opacity(0.3) ?? .clear, radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct CompactQuickActionCardView: View {
+    let title: String
+    let icon: String
+    let gradient: [Color]
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(.white)
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(
+            LinearGradient(
+                colors: gradient,
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: gradient.first?.opacity(0.3) ?? .clear, radius: 4, x: 0, y: 2)
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let bookUpdated = Notification.Name("bookUpdated")
+    static let bookSelected = Notification.Name("bookSelected")
 }
 
 struct LibraryView: View {

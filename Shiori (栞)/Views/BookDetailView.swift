@@ -383,7 +383,9 @@ struct BookDetailView: View {
             }
             .background(Color.customBackground)
         }
-        .navigationBarHidden(true)
+        .navigationTitle("Book Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
         .highPriorityGesture(
             DragGesture(minimumDistance: 20)
                 .onChanged { value in
