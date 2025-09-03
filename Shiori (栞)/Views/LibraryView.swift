@@ -11,6 +11,7 @@ struct LibraryView: View {
     @State private var showingConfirmation = false
     @State private var confirmationAction: (() -> Void)?
     @State private var showingBookmeterImport = false
+    @State private var showingExportImport = false
     
     var body: some View {
         NavigationView {
@@ -60,17 +61,31 @@ struct LibraryView: View {
             .navigationTitle("\(bookType.rawValue) Books")
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(
-                trailing: bookType == .manga ? 
+                trailing: HStack(spacing: 16) {
                     Button(action: {
-                        showingBookmeterImport = true
+                        showingExportImport = true
                     }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.down")
+                            Image(systemName: "arrow.up.arrow.down.circle")
                                 .font(.body)
-                            Text("Import")
+                            Text("Export/Import")
                                 .font(.subheadline)
                         }
-                    } : nil
+                    }
+                    
+                    if bookType == .manga {
+                        Button(action: {
+                            showingBookmeterImport = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.body)
+                                Text("Bookmeter")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                }
             )
             .onAppear {
                 loadSeries()
@@ -80,6 +95,9 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $showingBookmeterImport) {
                 BookmeterImportView()
+            }
+            .sheet(isPresented: $showingExportImport) {
+                ExportImportView()
             }
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
                 loadSeries()

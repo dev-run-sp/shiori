@@ -329,6 +329,205 @@ class DatabaseManager {
         }
     }
     
+    // MARK: - Export/Import Functions
+    
+    struct LibraryExport: Codable {
+        let exportDate: Date
+        let appVersion: String
+        let books: [ExportedBook]
+        
+        struct ExportedBook: Codable {
+            let title: String
+            let author: String?
+            let pageCount: Int?
+            let thumbnailUrl: String
+            let bookType: String
+            let readingStatus: String
+            let series: String?
+            let dateAdded: Date
+            let dateStarted: Date?
+            let dateFinished: Date?
+        }
+    }
+    
+    func exportLibraryData() -> Result<String, Error> {
+        do {
+            let allBooks = try dbQueue.read { db in
+                try SavedBook.order(SavedBook.Columns.dateAdded.desc).fetchAll(db)
+            }
+            
+            let exportedBooks = allBooks.map { book in
+                LibraryExport.ExportedBook(
+                    title: book.title,
+                    author: book.author,
+                    pageCount: book.pageCount,
+                    thumbnailUrl: book.thumbnailUrl,
+                    bookType: book.bookType.rawValue,
+                    readingStatus: book.readingStatus.rawValue,
+                    series: book.series,
+                    dateAdded: book.dateAdded,
+                    dateStarted: book.dateStarted,
+                    dateFinished: book.dateFinished
+                )
+            }
+            
+            let libraryExport = LibraryExport(
+                exportDate: Date(),
+                appVersion: "1.0.0",
+                books: exportedBooks
+            )
+            
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            
+            let jsonData = try encoder.encode(libraryExport)
+            let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+            
+            print("DEBUG: Successfully exported \(exportedBooks.count) books")
+            return .success(jsonString)
+            
+        } catch {
+            print("DEBUG: Failed to export library data: \(error)")
+            return .failure(error)
+        }
+    }
+    
+    func importLibraryData(_ jsonString: String, replaceExisting: Bool = false) -> Result<ImportResult, Error> {
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            guard let jsonData = jsonString.data(using: .utf8) else {
+                return .failure(ImportError.invalidJSON)
+            }
+            
+            let libraryExport = try decoder.decode(LibraryExport.self, from: jsonData)
+            
+            var importedCount = 0
+            let skippedCount = 0
+            var updatedCount = 0
+            var errors: [String] = []
+            
+            try dbQueue.write { db in
+                if replaceExisting {
+                    try SavedBook.deleteAll(db)
+                    print("DEBUG: Cleared existing library for replacement import")
+                }
+                
+                for exportedBook in libraryExport.books {
+                    do {
+                        // Validate book type and reading status
+                        guard let bookType = BookType(rawValue: exportedBook.bookType) else {
+                            errors.append("Invalid book type '\(exportedBook.bookType)' for book '\(exportedBook.title)'")
+                            continue
+                        }
+                        
+                        guard let readingStatus = ReadingStatus(rawValue: exportedBook.readingStatus) else {
+                            errors.append("Invalid reading status '\(exportedBook.readingStatus)' for book '\(exportedBook.title)'")
+                            continue
+                        }
+                        
+                        // Check if book already exists
+                        let existingBook = try SavedBook
+                            .filter(SavedBook.Columns.title == exportedBook.title && SavedBook.Columns.author == exportedBook.author)
+                            .fetchOne(db)
+                        
+                        if let existing = existingBook {
+                            if !replaceExisting {
+                                // Update existing book
+                                var updatedBook = existing
+                                updatedBook.pageCount = exportedBook.pageCount
+                                updatedBook.thumbnailUrl = exportedBook.thumbnailUrl
+                                updatedBook.bookType = bookType
+                                updatedBook.readingStatus = readingStatus
+                                updatedBook.series = exportedBook.series
+                                updatedBook.dateStarted = exportedBook.dateStarted
+                                updatedBook.dateFinished = exportedBook.dateFinished
+                                
+                                try updatedBook.update(db)
+                                updatedCount += 1
+                                print("DEBUG: Updated existing book: \(exportedBook.title)")
+                            }
+                        } else {
+                            // Create new book
+                            var newBook = SavedBook(
+                                id: nil,
+                                title: exportedBook.title,
+                                author: exportedBook.author,
+                                pageCount: exportedBook.pageCount,
+                                thumbnailUrl: exportedBook.thumbnailUrl,
+                                bookType: bookType,
+                                readingStatus: readingStatus,
+                                series: exportedBook.series,
+                                dateAdded: exportedBook.dateAdded,
+                                dateStarted: exportedBook.dateStarted,
+                                dateFinished: exportedBook.dateFinished
+                            )
+                            
+                            try newBook.insert(db)
+                            importedCount += 1
+                            print("DEBUG: Imported new book: \(exportedBook.title)")
+                        }
+                        
+                    } catch {
+                        errors.append("Failed to import '\(exportedBook.title)': \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            let result = ImportResult(
+                totalBooks: libraryExport.books.count,
+                importedCount: importedCount,
+                updatedCount: updatedCount,
+                skippedCount: skippedCount,
+                errors: errors
+            )
+            
+            print("DEBUG: Import completed - Imported: \(importedCount), Updated: \(updatedCount), Errors: \(errors.count)")
+            return .success(result)
+            
+        } catch {
+            print("DEBUG: Failed to import library data: \(error)")
+            return .failure(error)
+        }
+    }
+    
+    struct ImportResult {
+        let totalBooks: Int
+        let importedCount: Int
+        let updatedCount: Int
+        let skippedCount: Int
+        let errors: [String]
+        
+        var isSuccessful: Bool {
+            return errors.isEmpty || (importedCount + updatedCount > 0)
+        }
+        
+        var summary: String {
+            var parts: [String] = []
+            if importedCount > 0 { parts.append("\(importedCount) imported") }
+            if updatedCount > 0 { parts.append("\(updatedCount) updated") }
+            if skippedCount > 0 { parts.append("\(skippedCount) skipped") }
+            if !errors.isEmpty { parts.append("\(errors.count) errors") }
+            return parts.joined(separator: ", ")
+        }
+    }
+    
+    enum ImportError: Error {
+        case invalidJSON
+        case invalidData
+        
+        var localizedDescription: String {
+            switch self {
+            case .invalidJSON:
+                return "Invalid JSON format"
+            case .invalidData:
+                return "Invalid data structure"
+            }
+        }
+    }
+    
     // MARK: - Debug Functions
     func printAllBooks() {
         print("DEBUG: printAllBooks() called")
