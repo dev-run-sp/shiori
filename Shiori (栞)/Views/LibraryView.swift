@@ -91,7 +91,7 @@ struct LibraryView: View {
             .onAppear {
                 loadSeries()
             }
-            .fullScreenCover(item: $selectedSeries) { series in
+            .sheet(item: $selectedSeries) { series in
                 SeriesDetailView(series: series)
             }
             .sheet(isPresented: $showingBookmeterImport) {

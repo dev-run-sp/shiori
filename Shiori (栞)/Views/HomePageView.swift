@@ -170,7 +170,7 @@ struct HomePageView: View {
         .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
             loadData()
         }
-        .navigationDestination(item: $selectedBook) { book in
+        .sheet(item: $selectedBook) { book in
             BookDetailView(book: book, searchResults: [])
         }
         .sheet(isPresented: $showingExportImportView) {

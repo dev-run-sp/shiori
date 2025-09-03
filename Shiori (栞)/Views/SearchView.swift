@@ -10,6 +10,7 @@ struct SearchView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var searchHeaderVisible = true
+    @State private var selectedBook: Book?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +39,9 @@ struct SearchView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage)
+        }
+        .sheet(item: $selectedBook) { book in
+            BookDetailView(book: book, searchResults: results)
         }
     }
     
@@ -214,7 +218,9 @@ struct SearchView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     ForEach(results.indices, id: \.self) { index in
-                        NavigationLink(destination: BookDetailView(book: results[index], searchResults: results)) {
+                        Button(action: {
+                            selectedBook = results[index]
+                        }) {
                             bookRowView(for: results[index], at: index)
                         }
                         .buttonStyle(PlainButtonStyle())

@@ -24,102 +24,71 @@ struct BookDetailView: View {
     
     
     var body: some View {
-        ZStack {
-            // Background view (actual search results)
+        NavigationView {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
-                    ForEach(searchResults.indices, id: \.self) { index in
-                        let searchBook = searchResults[index]
-                        HStack(spacing: 20) {
-                            AsyncImage(url: URL(string: searchBook.thumbnailUrl)) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 100, height: 140)
-                                    .cornerRadius(8)
-                                    .shadow(radius: 2)
-                            } placeholder: {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(width: 100, height: 140)
-                                    .cornerRadius(8)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(searchBook.title)
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .lineLimit(3)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                
-                                if let author = searchBook.author {
-                                    Text("Author: \(author)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                if let pageCount = searchBook.pageCount {
-                                    Text("Pages: \(pageCount)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        Divider()
-                    }
-                }
-            }
-            .opacity(0.7)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.customBackground)
-            
-            // Minimalistic large layout
-            VStack(spacing: 20) {
-                Spacer(minLength: 10)
-                
-                // Full width book thumbnail
+            VStack(spacing: 24) {
+                Spacer(minLength: 20)
+                    
+                    // Large prominent book cover
                 AsyncImage(url: URL(string: book.thumbnailUrl)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: 320)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
+                        .frame(width: min(280, UIScreen.main.bounds.width * 0.7), height: 420)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.3), radius: 25, x: 0, y: 12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(.white.opacity(0.1), lineWidth: 1)
+                        )
                 } placeholder: {
                     Rectangle()
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(maxWidth: .infinity, maxHeight: 320)
-                        .cornerRadius(16)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: min(280, UIScreen.main.bounds.width * 0.7), height: 420)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 8)
                         .overlay(
-                            VStack(spacing: 8) {
+                            VStack(spacing: 12) {
                                 Image(systemName: "book.closed")
-                                    .font(.system(size: 50, weight: .ultraLight))
-                                    .foregroundColor(.gray.opacity(0.5))
-                                Text("No Cover Image")
-                                    .font(.caption)
+                                    .font(.system(size: 60, weight: .ultraLight))
                                     .foregroundColor(.gray.opacity(0.6))
+                                Text("No Cover Image")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray.opacity(0.7))
+                                    .fontWeight(.medium)
                             }
                         )
                 }
                 
-                // Clean book info
-                VStack(spacing: 12) {
+                // Elegant book info
+                VStack(spacing: 8) {
                     Text(book.title)
-                        .font(.title3)
-                        .fontWeight(.medium)
+                        .font(.title2)
+                        .fontWeight(.semibold)
                         .multilineTextAlignment(.center)
+                        .foregroundColor(.primary)
                     
                     if let author = book.author {
-                        Text(author)
+                        Text("by \(author)")
                             .font(.subheadline)
-                            .fontWeight(.regular)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
+                    
+                    if let pageCount = book.pageCount {
+                        Text("\(pageCount) pages")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
                 }
-                .padding(.horizontal, 30)
+                .padding(.horizontal, 40)
                 
                 // Minimalist book type selection (if needed)
                 if !isBookSaved {
@@ -201,50 +170,50 @@ struct BookDetailView: View {
                                 }
                             }
                         } label: {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 Image(systemName: "plus.circle.fill")
-                                    .font(.title3)
+                                    .font(.callout)
                                 Text("Add to Library")
-                                    .font(.body)
-                                    .fontWeight(.medium)
-                                Spacer()
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
                                 Image(systemName: "chevron.down")
-                                    .font(.caption)
+                                    .font(.caption2)
                             }
                             .foregroundColor(.white)
-                            .padding(.vertical, 16)
-                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 16)
                             .background(.blue)
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 40)
                     }
                 } else {
                     // Saved book actions
                     VStack(spacing: 16) {
-                        // Current status display and change status section
-                        VStack(spacing: 12) {
+                        // Compact status display
+                        VStack(spacing: 8) {
                             HStack {
-                                Text("Current Status:")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
+                                Text("Status:")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
                                 Spacer()
                             }
                             
                             // Current status card
-                            HStack(spacing: 12) {
+                            HStack(spacing: 8) {
                                 Image(systemName: readingStatus.icon)
-                                    .font(.title2)
+                                    .font(.callout)
                                     .foregroundColor(readingStatus.color)
                                 Text(readingStatus.rawValue)
-                                    .font(.body)
-                                    .fontWeight(.medium)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
                                 Spacer()
                             }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
                             .background(readingStatus.color.opacity(0.1))
-                            .cornerRadius(10)
+                            .cornerRadius(8)
                             
                             // Change status dropdown
                             Menu {
@@ -271,48 +240,48 @@ struct BookDetailView: View {
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 10) {
+                                HStack(spacing: 6) {
                                     Image(systemName: "arrow.triangle.2.circlepath")
-                                        .font(.body)
+                                        .font(.callout)
                                     Text("Change Status")
-                                        .font(.body)
-                                        .fontWeight(.medium)
-                                    Spacer()
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
                                     Image(systemName: "chevron.down")
-                                        .font(.caption)
+                                        .font(.caption2)
                                 }
                                 .foregroundColor(.blue)
-                                .padding(.vertical, 16)
-                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
                                 .background(Color.blue.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(8)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 40)
                         
-                        // Series management section
-                        VStack(spacing: 12) {
+                        // Compact series management
+                        VStack(spacing: 8) {
                             HStack {
                                 Text("Series:")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
                                 Spacer()
                             }
                             
                             // Current series display
-                            HStack(spacing: 12) {
+                            HStack(spacing: 8) {
                                 Image(systemName: "books.vertical")
-                                    .font(.title2)
+                                    .font(.callout)
                                     .foregroundColor(.secondary)
                                 Text(seriesName.isEmpty ? "No Series" : seriesName)
-                                    .font(.body)
-                                    .fontWeight(.medium)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
                                 Spacer()
                             }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
                             .background(Color.gray.opacity(0.1))
-                            .cornerRadius(10)
+                            .cornerRadius(8)
                             
                             // Change series dropdown
                             Menu {
@@ -339,65 +308,60 @@ struct BookDetailView: View {
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 10) {
+                                HStack(spacing: 6) {
                                     Image(systemName: "arrow.triangle.2.circlepath")
-                                        .font(.body)
+                                        .font(.callout)
                                     Text("Change Series")
-                                        .font(.body)
-                                        .fontWeight(.medium)
-                                    Spacer()
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
                                     Image(systemName: "chevron.down")
-                                        .font(.caption)
+                                        .font(.caption2)
                                 }
                                 .foregroundColor(.purple)
-                                .padding(.vertical, 16)
-                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
                                 .background(Color.purple.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(8)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 40)
                         
-                        // Remove button
+                        // Compact remove button
                         Button(action: {
                             removeBook()
                         }) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 6) {
                                 Image(systemName: "trash")
-                                    .font(.body)
-                                Text("Remove from Library")
-                                    .font(.body)
-                                    .fontWeight(.medium)
+                                    .font(.callout)
+                                Text("Remove")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
                             }
                             .foregroundColor(.white)
-                            .padding(.vertical, 16)
-                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
                             .background(.red)
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 40)
                     }
                 }
                 
-                Spacer(minLength: 20)
+                Spacer(minLength: 40)
             }
             .background(Color.customBackground)
-        }
-        .navigationTitle("Book Details")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(false)
-        .highPriorityGesture(
-            DragGesture(minimumDistance: 20)
-                .onChanged { value in
-                    let translation = value.translation.height
-                    if translation > 30 {
-                        // Immediate dismiss as soon as threshold is met
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            dismiss()
-                        }
+            .navigationTitle("Book Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(false)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
                     }
                 }
-        )
+            }
+        }
+        }
         .onAppear {
             resetViewState()
             checkIfBookSaved()

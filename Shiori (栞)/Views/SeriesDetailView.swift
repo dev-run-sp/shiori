@@ -209,7 +209,7 @@ struct SeriesDetailView: View {
                 loadBooksInSeries()
                 loadExistingSeries()
             }
-            .fullScreenCover(item: $selectedBook) { book in
+            .sheet(item: $selectedBook) { book in
                 BookDetailView(book: book, searchResults: [])
             }
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
