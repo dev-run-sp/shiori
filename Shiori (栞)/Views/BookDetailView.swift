@@ -405,7 +405,8 @@ struct BookDetailView: View {
             TextField("Series Name", text: $newSeriesName)
             Button("Add") {
                 if !newSeriesName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    seriesName = newSeriesName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmedSeriesName = newSeriesName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updateBookSeries(trimmedSeriesName)
                     newSeriesName = ""
                 }
             }
