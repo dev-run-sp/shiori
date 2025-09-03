@@ -118,8 +118,8 @@ struct SeriesDetailView: View {
                                         selectedBook = savedBook.toBook()
                                     }
                                 },
-                                onChangeStatus: { book in
-                                    changeReadingStatus(for: book)
+                                onChangeStatus: { book, newStatus in
+                                    changeReadingStatus(for: book, to: newStatus)
                                 },
                                 onChangeSeries: { book in
                                     changeBookSeries(book)
@@ -141,33 +141,45 @@ struct SeriesDetailView: View {
                     .background(Color.customBackground)
                     
                     // Bulk actions toolbar
-                    if isMultiSelectMode && !selectedBooks.isEmpty {
+                    if isMultiSelectMode {
                         VStack(spacing: 0) {
                             Divider()
-                            HStack(spacing: 20) {
+                            HStack(spacing: 16) {
                                 Text("\(selectedBooks.count) selected")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 
-                                Spacer()
-                                
-                                Button("Change Series") {
-                                    showingBulkSeriesSelection = true
+                                Button(selectedBooks.count == booksInSeries.count ? "Deselect All" : "Select All") {
+                                    if selectedBooks.count == booksInSeries.count {
+                                        selectedBooks.removeAll()
+                                    } else {
+                                        selectedBooks = Set(booksInSeries.compactMap { $0.id })
+                                    }
                                 }
                                 .font(.subheadline)
                                 .foregroundColor(.blue)
                                 
-                                Button("Mark as Read") {
-                                    bulkMarkAsRead()
-                                }
-                                .font(.subheadline)
-                                .foregroundColor(.green)
+                                Spacer()
                                 
-                                Button("Delete") {
-                                    bulkDelete()
+                                if !selectedBooks.isEmpty {
+                                    Button("Change Series") {
+                                        showingBulkSeriesSelection = true
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                                
+                                    Button("Mark as Read") {
+                                        bulkMarkAsRead()
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundColor(.green)
+                                    
+                                    Button("Delete") {
+                                        bulkDelete()
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundColor(.red)
                                 }
-                                .font(.subheadline)
-                                .foregroundColor(.red)
                             }
                             .padding()
                             .background(Color(UIColor.systemBackground))
@@ -322,20 +334,18 @@ struct SeriesDetailView: View {
         }
     }
     
-    private func changeReadingStatus(for savedBook: SavedBook) {
+    private func changeReadingStatus(for savedBook: SavedBook, to newStatus: ReadingStatus) {
         guard let bookId = savedBook.id else { return }
         
-        let allCases = ReadingStatus.allCases
-        if let currentIndex = allCases.firstIndex(of: savedBook.readingStatus) {
-            let nextIndex = (currentIndex + 1) % allCases.count
-            let newStatus = allCases[nextIndex]
-            
-            if DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: newStatus) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    loadBooksInSeries()
-                }
-                NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        if savedBook.readingStatus == newStatus {
+            return // No change needed
+        }
+        
+        if DatabaseManager.shared.updateReadingStatus(bookId: bookId, status: newStatus) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                loadBooksInSeries()
             }
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
         }
     }
     
@@ -453,7 +463,7 @@ struct SeriesBookRow: View {
     let isMultiSelectMode: Bool
     let isSelected: Bool
     let onTap: () -> Void
-    let onChangeStatus: (SavedBook) -> Void
+    let onChangeStatus: (SavedBook, ReadingStatus) -> Void
     let onChangeSeries: (SavedBook) -> Void
     let onRemove: (SavedBook) -> Void
     
@@ -492,9 +502,22 @@ struct SeriesBookRow: View {
                         Label("View Details", systemImage: "book.fill")
                     }
                     
-                    Button(action: {
-                        onChangeStatus(savedBook)
-                    }) {
+                    Menu {
+                        ForEach(ReadingStatus.allCases, id: \.self) { status in
+                            Button {
+                                onChangeStatus(savedBook, status)
+                            } label: {
+                                HStack {
+                                    Image(systemName: status.icon)
+                                    Text(status.rawValue)
+                                    Spacer()
+                                    if status == savedBook.readingStatus {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
                         Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
                     }
                     

@@ -249,17 +249,23 @@ struct BookDetailView: View {
                             // Change status dropdown
                             Menu {
                                 ForEach(ReadingStatus.allCases, id: \.self) { status in
-                                    if status != readingStatus {
-                                        Button {
-                                            if status == .finished {
-                                                showingDatePicker = true
-                                            } else {
-                                                changeReadingStatus(to: status)
-                                            }
-                                        } label: {
-                                            HStack {
-                                                Image(systemName: status.icon)
-                                                Text(status.rawValue)
+                                    Button {
+                                        if status == readingStatus {
+                                            // Already selected, do nothing or show feedback
+                                            return
+                                        } else if status == .finished {
+                                            showingDatePicker = true
+                                        } else {
+                                            changeReadingStatus(to: status)
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: status.icon)
+                                            Text(status.rawValue)
+                                            Spacer()
+                                            if status == readingStatus {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundColor(.blue)
                                             }
                                         }
                                     }
