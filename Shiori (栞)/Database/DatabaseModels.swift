@@ -112,18 +112,27 @@ struct SeriesData: Identifiable {
     let bookCount: Int
     let completedCount: Int
     let currentlyReadingCount: Int
+    let wantToReadCount: Int
     let lastBookThumbnail: String
     let lastReadDate: Date?
     
     var displayStatus: String {
-        if completedCount > 0 && currentlyReadingCount > 0 {
-            return "\(completedCount) finished, \(currentlyReadingCount) reading"
-        } else if completedCount > 0 {
-            return "\(completedCount) finished"
-        } else if currentlyReadingCount > 0 {
-            return "\(currentlyReadingCount) reading"
-        } else {
+        var statusParts: [String] = []
+        
+        if completedCount > 0 {
+            statusParts.append("• \(completedCount) finished")
+        }
+        if currentlyReadingCount > 0 {
+            statusParts.append("• \(currentlyReadingCount) reading")
+        }
+        if wantToReadCount > 0 {
+            statusParts.append("• \(wantToReadCount) want to read")
+        }
+        
+        if statusParts.isEmpty {
             return "\(bookCount) books"
+        } else {
+            return statusParts.joined(separator: "\n")
         }
     }
 }

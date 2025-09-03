@@ -70,6 +70,29 @@ struct ContentView: View {
     // Navigation states
     @State private var selectedBook: Book?
     
+    // Quick add states - removed success alerts
+    
+    private func quickAddBook(_ book: Book, status: ReadingStatus) {
+        // Default to English book type for quick add
+        let result = DatabaseManager.shared.saveBook(book, bookType: .english, series: nil)
+        
+        if result.success {
+            // Update the status if it's not the default "want to read"
+            if status != .wantToRead {
+                if let savedBook = DatabaseManager.shared.findBook(title: book.title, author: book.author) {
+                    if DatabaseManager.shared.updateReadingStatus(bookId: savedBook.id!, status: status) {
+                        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+                        return
+                    }
+                }
+            }
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        } else {
+            alertMessage = result.error ?? "Failed to add book"
+            showingAlert = true
+        }
+    }
+
     var body: some View {
         TabView {
             // Home Tab
@@ -312,22 +335,19 @@ struct ContentView: View {
                                     }
                                     
                                     Button(action: {
-                                        // Quick add to Want to Read
-                                        // You can implement this action
+                                        quickAddBook(book, status: .wantToRead)
                                     }) {
                                         Label("Add to Want to Read", systemImage: "bookmark")
                                     }
                                     
                                     Button(action: {
-                                        // Quick add to Currently Reading
-                                        // You can implement this action
+                                        quickAddBook(book, status: .currentlyReading)
                                     }) {
                                         Label("Mark as Currently Reading", systemImage: "book.circle")
                                     }
                                     
                                     Button(action: {
-                                        // Quick add to Finished
-                                        // You can implement this action
+                                        quickAddBook(book, status: .finished)
                                     }) {
                                         Label("Mark as Finished", systemImage: "checkmark.circle")
                                     }
