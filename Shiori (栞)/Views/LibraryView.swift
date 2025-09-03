@@ -2,6 +2,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let bookUpdated = Notification.Name("bookUpdated")
+    static let bookSelected = Notification.Name("bookSelected")
 }
 
 struct LibraryView: View {
@@ -12,10 +13,21 @@ struct LibraryView: View {
     @State private var confirmationAction: (() -> Void)?
     @State private var showingBookmeterImport = false
     @State private var showingExportImport = false
+    @State private var totalBooks = 0
+    @State private var finishedBooks = 0
+    @State private var currentlyReadingBooks = 0
+    @State private var wantToReadBooks = 0
     
     var body: some View {
         NavigationView {
             VStack {
+                // Stats row
+                if !seriesData.isEmpty || totalBooks > 0 {
+                    statsRow
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                }
+                
                 if seriesData.isEmpty {
                     // Empty state
                     VStack(spacing: 20) {
@@ -90,7 +102,7 @@ struct LibraryView: View {
             .onAppear {
                 loadSeries()
             }
-            .fullScreenCover(item: $selectedSeries) { series in
+            .sheet(item: $selectedSeries) { series in
                 SeriesDetailView(series: series)
             }
             .sheet(isPresented: $showingBookmeterImport) {
@@ -114,6 +126,18 @@ struct LibraryView: View {
         }
     }
     
+    private var statsRow: some View {
+        HStack(spacing: 12) {
+            CompactStatView(title: "Total", value: totalBooks, color: .secondary)
+            CompactStatView(title: "Want to Read", value: wantToReadBooks, color: .blue)
+            CompactStatView(title: "Reading", value: currentlyReadingBooks, color: .orange)
+            CompactStatView(title: "Finished", value: finishedBooks, color: .green)
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
     private var bookTypeIcon: String {
         switch bookType {
         case .english: return "book"
@@ -124,7 +148,16 @@ struct LibraryView: View {
     
     private func loadSeries() {
         seriesData = DatabaseManager.shared.getSeries(by: bookType)
+        loadStats()
         print("DEBUG: LibraryView loaded \(seriesData.count) series for \(bookType.rawValue)")
+    }
+    
+    private func loadStats() {
+        let books = DatabaseManager.shared.getBooks(by: bookType)
+        totalBooks = books.count
+        finishedBooks = books.filter { $0.readingStatus == .finished }.count
+        currentlyReadingBooks = books.filter { $0.readingStatus == .currentlyReading }.count
+        wantToReadBooks = books.filter { $0.readingStatus == .wantToRead }.count
     }
     
     private func markAllAsRead(in series: SeriesData) {
@@ -169,6 +202,27 @@ struct LibraryView: View {
            let rootViewController = windowScene.windows.first?.rootViewController {
             rootViewController.present(activityController, animated: true)
         }
+    }
+}
+
+struct CompactStatView: View {
+    let title: String
+    let value: Int
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text("\(value)")
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

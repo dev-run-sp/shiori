@@ -42,10 +42,21 @@ struct SeriesDetailView: View {
     @State private var selectedBooks: Set<Int64> = []
     @State private var showingBulkSeriesSelection = false
     @State private var selectedStatusFilter: BookStatusFilter = .all
+    @State private var totalBooksInSeries = 0
+    @State private var finishedBooksInSeries = 0
+    @State private var currentlyReadingBooksInSeries = 0
+    @State private var wantToReadBooksInSeries = 0
     
     var body: some View {
         NavigationView {
             VStack {
+                // Stats row
+                if !allBooksInSeries.isEmpty {
+                    seriesStatsRow
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                }
+                
                 // Filter picker
                 if !allBooksInSeries.isEmpty {
                     VStack(spacing: 8) {
@@ -209,7 +220,7 @@ struct SeriesDetailView: View {
                 loadBooksInSeries()
                 loadExistingSeries()
             }
-            .fullScreenCover(item: $selectedBook) { book in
+            .sheet(item: $selectedBook) { book in
                 BookDetailView(book: book, searchResults: [])
             }
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
@@ -268,9 +279,29 @@ struct SeriesDetailView: View {
         }
     }
     
+    private var seriesStatsRow: some View {
+        HStack(spacing: 12) {
+            CompactStatView(title: "Total", value: totalBooksInSeries, color: .secondary)
+            CompactStatView(title: "Want to Read", value: wantToReadBooksInSeries, color: .blue)
+            CompactStatView(title: "Reading", value: currentlyReadingBooksInSeries, color: .orange)
+            CompactStatView(title: "Finished", value: finishedBooksInSeries, color: .green)
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
     private func loadBooksInSeries() {
         allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        loadSeriesStats()
         applyFilter()
+    }
+    
+    private func loadSeriesStats() {
+        totalBooksInSeries = allBooksInSeries.count
+        finishedBooksInSeries = allBooksInSeries.filter { $0.readingStatus == .finished }.count
+        currentlyReadingBooksInSeries = allBooksInSeries.filter { $0.readingStatus == .currentlyReading }.count
+        wantToReadBooksInSeries = allBooksInSeries.filter { $0.readingStatus == .wantToRead }.count
     }
     
     private func applyFilter() {

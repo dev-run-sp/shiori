@@ -1,11 +1,27 @@
 import Foundation
 
-struct Book: Identifiable {
+struct Book: Identifiable, Hashable {
     let id = UUID()
     let title: String
     let thumbnailUrl: String
     let author: String?
     let pageCount: Int?
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(title)
+        hasher.combine(thumbnailUrl)
+        hasher.combine(author)
+        hasher.combine(pageCount)
+    }
+    
+    static func == (lhs: Book, rhs: Book) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.thumbnailUrl == rhs.thumbnailUrl &&
+        lhs.author == rhs.author &&
+        lhs.pageCount == rhs.pageCount
+    }
 }
 
 extension Book {
