@@ -45,9 +45,16 @@ class OpenLibraryService {
         // Create cover URL from cover_i if available
         let thumbnailUrl: String
         if let coverI = doc.cover_i {
+            // Use Medium size (-M.jpg) for good quality thumbnails
             thumbnailUrl = "https://covers.openlibrary.org/b/id/\(coverI)-M.jpg"
+            print("DEBUG: Generated cover URL: \(thumbnailUrl) for book: \(title)")
+            
+            // Also test with Small size as fallback option in logs
+            let smallUrl = "https://covers.openlibrary.org/b/id/\(coverI)-S.jpg"
+            print("DEBUG: Alternative Small URL: \(smallUrl)")
         } else {
             thumbnailUrl = ""
+            print("DEBUG: No cover_i found for book: \(title)")
         }
         
         return Book(
