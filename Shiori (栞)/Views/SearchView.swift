@@ -118,8 +118,8 @@ struct SearchView: View {
             Button("Bookmeter") {
                 selectedPlatform = "Bookmeter"
             }
-            Button("Goodreads") {
-                selectedPlatform = "Goodreads"
+            Button("Open Library") {
+                selectedPlatform = "Open Library"
             }
         } label: {
             HStack {
@@ -342,20 +342,18 @@ struct SearchView: View {
             return
         }
         
-        if selectedPlatform == "Goodreads" {
-            await MainActor.run {
-                alertMessage = "Goodreads search has not been implemented yet"
-                showingAlert = true
-            }
-            return
-        }
-        
         await MainActor.run {
             isLoading = true
         }
         
         do {
-            let newResults = try await BookmeterService.searchBooks(query: trimmedSearchText, page: currentPage)
+            let newResults: [Book]
+            if selectedPlatform == "Open Library" {
+                newResults = try await OpenLibraryService.searchBooks(query: trimmedSearchText, page: currentPage)
+            } else {
+                // Bookmeter
+                newResults = try await BookmeterService.searchBooks(query: trimmedSearchText, page: currentPage)
+            }
             
             await MainActor.run {
                 if newResults.isEmpty {
