@@ -1,65 +1,48 @@
-# Shiori
+# Shiori (栞)
 
-A SwiftUI-based iOS application for tracking and logging your reading journey across different platforms. Currently supports book search through Bookmeter with plans for Goodreads integration.
+A vibecoded personal book library app. Everything after this statement is written with claude (yes, including this README). Keep track of what you're reading, what you want to read, and what you've finished across different types of books.
 
-## Features
+## ✨ Features
 
-### Book Search & Logging
-- Search for books you've read across multiple platforms
-- Clean, intuitive search interface with platform selection
-- Real-time search with infinite scrolling
-- Add books to your personal reading log
-- Track your reading progress and history
+### 📚 Find Books
+- Search for Japanese books and manga on Bookmeter
+- Search millions of books worldwide on Open Library
+- Browse results with book covers and details
+- Add books directly to your library
 
-### Book Collection
-- Organized view of your read books
-- Beautiful thumbnails with optimized loading
-- Filter and sort your reading history
-- Track reading stats and progress
+### 📖 Organize Your Books
+- Separate sections for English Books, Japanese Books, and Manga
+- Track reading status: Want to Read, Currently Reading, Finished
+- Group books into custom series collections
+- See reading statistics at a glance
+- View detailed book information
 
-### UI/UX
-- Tab-based navigation
-- Responsive search interface
-- Loading indicators for better user feedback
-- Error handling with user-friendly messages
-- Adaptive layout with proper spacing and shadows
+### 🏠 Home Dashboard
+- Welcome screen with your library overview
+- See books you're currently reading
+- View recently added books
+- Quick access to search and import features
 
-## Technical Details
+### 🔄 Import & Export
+- Import your reading history from Bookmeter
+- Backup and restore your entire library
+- Create and organize book series
+- Filter books by reading status
 
-### Architecture
-- Built with SwiftUI
-- Async/await for network operations
-- MVVM pattern for clean separation of concerns
+## 📱 Requirements
+- **iOS 18.0+**
+- **Internet connection** for book search and cover images
 
-### APIs & Services
-- Bookmeter API integration
-- HTML parsing using SwiftSoup
-- Image loading with AsyncImage
+## 🚀 Getting Started
 
-### Performance
-- Lazy loading of search results
-- Efficient pagination implementation
-- Optimized image loading and caching
+### Installation
+1. Download the project
+2. Install on your iOS device
 
-## Future Enhancements
-- Goodreads API integration
-- Reading status tracking (Currently Reading, Completed, Want to Read)
-- Reading statistics and insights
-- Progress tracking for current books
-- Reading history visualization
-- Notes and highlights for each book
-- Reading goals and achievements
-- Export and backup of reading data
-- Social sharing of reading progress
-- Additional platforms and services
-
-## Requirements
-- iOS 15.0+
-- Xcode 13.0+
-- Swift 5.5+
-
-## Getting Started
-1. Clone the repository
-2. Open `Shiori (栞).xcodeproj` in Xcode
-3. Build and run the project
+### How to Use
+1. **Home**: See your reading overview and stats
+2. **Search**: Find books on Bookmeter or Open Library
+3. **Library**: Browse your books organized by type
+4. **Add Books**: Search, select, and add books to your library
+5. **Track Reading**: Update status as you read
 
