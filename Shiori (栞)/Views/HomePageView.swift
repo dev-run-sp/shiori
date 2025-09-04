@@ -268,17 +268,53 @@ struct CurrentlyReadingCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: URL(string: book.thumbnailUrl)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "book.closed")
-                            .foregroundColor(.gray)
-                    )
+            AsyncImage(url: {
+                print("DEBUG: CurrentlyReadingCard thumbnail URL: '\(book.thumbnailUrl)'")
+                let url = URL(string: book.thumbnailUrl)
+                print("DEBUG: URL validation result: \(url?.absoluteString ?? "INVALID")")
+                return url
+            }()) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                case .failure(let error):
+                    Rectangle()
+                        .fill(Color.red.opacity(0.1))
+                        .overlay(
+                            VStack {
+                                Image(systemName: "book.closed")
+                                    .foregroundColor(.gray)
+                                Text("Failed")
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                                Text("\(error.localizedDescription)")
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                                    .multilineTextAlignment(.center)
+                            }
+                        )
+                case .empty:
+                    Rectangle()
+                        .fill(Color.blue.opacity(0.1))
+                        .overlay(
+                            VStack {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                Text("Loading...")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                        )
+                @unknown default:
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .overlay(
+                            Image(systemName: "book.closed")
+                                .foregroundColor(.gray)
+                        )
+                }
             }
             .frame(width: 100, height: 150)
             .clipShape(RoundedRectangle(cornerRadius: 8))
