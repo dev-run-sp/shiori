@@ -19,6 +19,9 @@ struct BookDetailView: View {
     @State private var finishDate = Date()
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
+    @State private var customThumbnailUrl = ""
+    @State private var showingCustomUrlInput = false
+    @State private var imageRefreshId = UUID()
     
     // No drag states needed for immediate dismiss
     
@@ -30,7 +33,7 @@ struct BookDetailView: View {
                 Spacer(minLength: 20)
                     
                     // Large prominent book cover
-                AsyncImage(url: URL(string: book.thumbnailUrl)) { image in
+                AsyncImage(url: URL(string: savedBook?.thumbnailUrl ?? book.thumbnailUrl)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -65,6 +68,7 @@ struct BookDetailView: View {
                             }
                         )
                 }
+                .id(imageRefreshId)
                 
                 // Elegant book info
                 VStack(spacing: 8) {
@@ -326,6 +330,27 @@ struct BookDetailView: View {
                         }
                         .padding(.horizontal, 40)
                         
+                        // Custom thumbnail URL button
+                        Button(action: {
+                            print("DEBUG: Custom Cover URL button tapped")
+                            customThumbnailUrl = savedBook?.thumbnailUrl ?? ""
+                            showingCustomUrlInput = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.callout)
+                                Text("Change Cover URL")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        .padding(.horizontal, 40)
+                        
                         // Compact remove button
                         Button(action: {
                             removeBook()
@@ -386,6 +411,17 @@ struct BookDetailView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Change Cover URL", isPresented: $showingCustomUrlInput) {
+            TextField("Enter image URL", text: $customThumbnailUrl)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Save") {
+                updateThumbnailUrl()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter a new URL for the book cover image")
         }
         .sheet(isPresented: $showingDatePicker) {
             NavigationView {
@@ -538,6 +574,33 @@ struct BookDetailView: View {
             seriesName = newSeries
             checkIfBookSaved() // Refresh the saved book data
             NotificationCenter.default.post(name: .bookUpdated, object: nil)
+        }
+    }
+    
+    private func updateThumbnailUrl() {
+        guard let savedBook = savedBook else { return }
+        
+        let urlValue = customThumbnailUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Basic URL validation
+        if !urlValue.isEmpty {
+            guard let url = URL(string: urlValue), 
+                  url.scheme?.lowercased() == "https" || url.scheme?.lowercased() == "http" else {
+                errorMessage = "Please enter a valid URL starting with http:// or https://"
+                showingErrorAlert = true
+                return
+            }
+        }
+        
+        if DatabaseManager.shared.updateThumbnailUrl(bookId: savedBook.id!, newUrl: urlValue) {
+            checkIfBookSaved() // Refresh the saved book data
+            imageRefreshId = UUID() // Force AsyncImage to refresh
+            NotificationCenter.default.post(name: .bookUpdated, object: nil)
+            print("DEBUG: Successfully updated thumbnail URL")
+        } else {
+            errorMessage = "Failed to update thumbnail URL"
+            showingErrorAlert = true
+            print("DEBUG: Failed to update thumbnail URL")
         }
     }
     
