@@ -114,6 +114,23 @@ class DatabaseManager {
         }
     }
     
+    func updateThumbnailUrl(bookId: Int64, newUrl: String) -> Bool {
+        print("DEBUG: updateThumbnailUrl called for book ID: \(bookId), newUrl: \(newUrl)")
+        
+        do {
+            try dbQueue.write { db in
+                var savedBook = try SavedBook.fetchOne(db, key: bookId)!
+                savedBook.thumbnailUrl = newUrl
+                try savedBook.update(db)
+                print("DEBUG: Successfully updated thumbnail URL")
+            }
+            return true
+        } catch {
+            print("DEBUG: Failed to update thumbnail URL: \(error)")
+            return false
+        }
+    }
+    
     func getBooks(by bookType: BookType) -> [SavedBook] {
         print("DEBUG: getBooks() called for bookType: '\(bookType.rawValue)'")
         
