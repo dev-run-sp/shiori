@@ -390,7 +390,7 @@ struct SeriesDetailView: View {
         case .alphabetical:
             booksInSeries.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         case .dateAdded:
-            booksInSeries.sort { ($0.dateAdded ?? Date.distantPast) > ($1.dateAdded ?? Date.distantPast) }
+            booksInSeries.sort { $0.dateAdded > $1.dateAdded }
         case .readingStatus:
             let statusOrder: [ReadingStatus] = [.currentlyReading, .wantToRead, .finished]
             booksInSeries.sort { book1, book2 in
