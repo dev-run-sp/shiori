@@ -25,6 +25,24 @@ enum BookStatusFilter: String, CaseIterable {
     }
 }
 
+enum SortOption: String, CaseIterable {
+    case alphabetical = "Alphabetical"
+    case dateAdded = "Date Added"
+    case readingStatus = "Reading Status"
+    case author = "Author"
+    case manual = "Manual"
+    
+    var icon: String {
+        switch self {
+        case .alphabetical: return "textformat.abc"
+        case .dateAdded: return "calendar"
+        case .readingStatus: return "checkmark.circle"
+        case .author: return "person"
+        case .manual: return "hand.draw"
+        }
+    }
+}
+
 struct SeriesDetailView: View {
     let series: SeriesData
     @State private var booksInSeries: [SavedBook] = []
@@ -42,6 +60,8 @@ struct SeriesDetailView: View {
     @State private var selectedBooks: Set<Int64> = []
     @State private var showingBulkSeriesSelection = false
     @State private var selectedStatusFilter: BookStatusFilter = .all
+    @State private var selectedSortOption: SortOption = .alphabetical
+    @State private var manualBookOrder: [Int64] = []
     @State private var totalBooksInSeries = 0
     @State private var finishedBooksInSeries = 0
     @State private var currentlyReadingBooksInSeries = 0
@@ -90,6 +110,56 @@ struct SeriesDetailView: View {
                             }
                             .padding(.horizontal)
                         }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+                
+                // Sort dropdown
+                if !booksInSeries.isEmpty {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Sort by")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        
+                        Menu {
+                            ForEach(SortOption.allCases, id: \.self) { option in
+                                Button(action: {
+                                    selectedSortOption = option
+                                    applySorting()
+                                }) {
+                                    HStack {
+                                        Image(systemName: option.icon)
+                                        Text(option.rawValue)
+                                        Spacer()
+                                        if selectedSortOption == option {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: selectedSortOption.icon)
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text(selectedSortOption.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        .padding(.horizontal)
                     }
                     .padding(.horizontal)
                     .padding(.top, 8)
@@ -147,6 +217,7 @@ struct SeriesDetailView: View {
                                 .tint(.red)
                             }
                         }
+                        .onMove(perform: selectedSortOption == .manual ? moveBooks : nil)
                     }
                     .listStyle(PlainListStyle())
                     .background(Color.customBackground)
@@ -219,6 +290,7 @@ struct SeriesDetailView: View {
             .onAppear {
                 loadBooksInSeries()
                 loadExistingSeries()
+                loadManualOrder()
             }
             .sheet(item: $selectedBook) { book in
                 BookDetailView(book: book, searchResults: [])
@@ -310,6 +382,65 @@ struct SeriesDetailView: View {
         } else {
             booksInSeries = allBooksInSeries
         }
+        applySorting()
+    }
+    
+    private func applySorting() {
+        switch selectedSortOption {
+        case .alphabetical:
+            booksInSeries.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .dateAdded:
+            booksInSeries.sort { ($0.dateAdded ?? Date.distantPast) > ($1.dateAdded ?? Date.distantPast) }
+        case .readingStatus:
+            let statusOrder: [ReadingStatus] = [.currentlyReading, .wantToRead, .finished]
+            booksInSeries.sort { book1, book2 in
+                let index1 = statusOrder.firstIndex(of: book1.readingStatus) ?? statusOrder.count
+                let index2 = statusOrder.firstIndex(of: book2.readingStatus) ?? statusOrder.count
+                if index1 != index2 {
+                    return index1 < index2
+                }
+                return book1.title.localizedStandardCompare(book2.title) == .orderedAscending
+            }
+        case .author:
+            booksInSeries.sort { book1, book2 in
+                let author1 = book1.author ?? ""
+                let author2 = book2.author ?? ""
+                if author1 != author2 {
+                    return author1.localizedCaseInsensitiveCompare(author2) == .orderedAscending
+                }
+                return book1.title.localizedStandardCompare(book2.title) == .orderedAscending
+            }
+        case .manual:
+            if manualBookOrder.isEmpty {
+                manualBookOrder = booksInSeries.compactMap { $0.id }
+            } else {
+                booksInSeries.sort { book1, book2 in
+                    let id1 = book1.id ?? -1
+                    let id2 = book2.id ?? -1
+                    let index1 = manualBookOrder.firstIndex(of: id1) ?? Int.max
+                    let index2 = manualBookOrder.firstIndex(of: id2) ?? Int.max
+                    return index1 < index2
+                }
+            }
+        }
+    }
+    
+    private func moveBooks(from source: IndexSet, to destination: Int) {
+        guard selectedSortOption == .manual else { return }
+        
+        var newOrder = booksInSeries
+        newOrder.move(fromOffsets: source, toOffset: destination)
+        booksInSeries = newOrder
+        manualBookOrder = booksInSeries.compactMap { $0.id }
+        saveManualOrder()
+    }
+    
+    private func saveManualOrder() {
+        UserDefaults.standard.set(manualBookOrder, forKey: "manualOrder_\(series.seriesName)_\(series.bookType.rawValue)")
+    }
+    
+    private func loadManualOrder() {
+        manualBookOrder = UserDefaults.standard.array(forKey: "manualOrder_\(series.seriesName)_\(series.bookType.rawValue)") as? [Int64] ?? []
     }
     
     private var emptyStateTitle: String {
