@@ -162,16 +162,61 @@ struct LibraryView: View {
     private func loadSeries() {
         let allSeries = DatabaseManager.shared.getSeries(by: bookType)
         let hiddenSeriesNames = getHiddenSeriesNames()
-        seriesData = allSeries.filter { !hiddenSeriesNames.contains($0.seriesName) }
+        let visibleSeries = allSeries.filter { !hiddenSeriesNames.contains($0.seriesName) }
+        
+        // Recalculate series stats excluding hidden individual books
+        seriesData = visibleSeries.map { series in
+            let allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+            let hiddenBookIds = getHiddenBookIds(for: series.seriesName)
+            let visibleBooksInSeries = allBooksInSeries.filter { book in
+                guard let bookId = book.id else { return true }
+                return !hiddenBookIds.contains(bookId)
+            }
+            
+            let completedCount = visibleBooksInSeries.filter { $0.readingStatus == .finished }.count
+            let currentlyReadingCount = visibleBooksInSeries.filter { $0.readingStatus == .currentlyReading }.count
+            let wantToReadCount = visibleBooksInSeries.filter { $0.readingStatus == .wantToRead }.count
+            
+            return SeriesData(
+                seriesName: series.seriesName,
+                bookType: series.bookType,
+                bookCount: visibleBooksInSeries.count,
+                completedCount: completedCount,
+                currentlyReadingCount: currentlyReadingCount,
+                wantToReadCount: wantToReadCount,
+                lastBookThumbnail: series.lastBookThumbnail,
+                lastReadDate: series.lastReadDate
+            )
+        }
+        
         loadStats()
         print("DEBUG: LibraryView loaded \(seriesData.count) series for \(bookType.rawValue)")
+    }
+    
+    private func getHiddenBookIds(for seriesName: String) -> Set<Int64> {
+        let key = "hiddenBooks_\(seriesName)_\(bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        return Set(hiddenIds)
     }
     
     private func loadStats() {
         let allBooks = DatabaseManager.shared.getBooks(by: bookType)
         let hiddenSeriesNames = getHiddenSeriesNames()
         let visibleBooks = allBooks.filter { book in
-            !hiddenSeriesNames.contains(book.series ?? "Standalone Books")
+            // Filter out books from hidden series
+            if hiddenSeriesNames.contains(book.series ?? "Standalone Books") {
+                return false
+            }
+            
+            // Filter out individually hidden books
+            if let bookId = book.id {
+                let hiddenBookIds = getHiddenBookIds(for: book.series ?? "Standalone Books")
+                if hiddenBookIds.contains(bookId) {
+                    return false
+                }
+            }
+            
+            return true
         }
         
         totalBooks = visibleBooks.count

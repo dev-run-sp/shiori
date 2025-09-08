@@ -206,10 +206,29 @@ struct HomePageView: View {
         return Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
     }
     
+    private func getHiddenBookIds(for bookType: BookType, seriesName: String) -> Set<Int64> {
+        let key = "hiddenBooks_\(seriesName)_\(bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        return Set(hiddenIds)
+    }
+    
     private func filterVisibleBooks(_ books: [SavedBook], bookType: BookType) -> [SavedBook] {
         let hiddenSeriesNames = getHiddenSeriesNames(for: bookType)
         return books.filter { book in
-            !hiddenSeriesNames.contains(book.series ?? "Standalone Books")
+            // Filter out books from hidden series
+            if hiddenSeriesNames.contains(book.series ?? "Standalone Books") {
+                return false
+            }
+            
+            // Filter out individually hidden books
+            if let bookId = book.id {
+                let hiddenBookIds = getHiddenBookIds(for: bookType, seriesName: book.series ?? "Standalone Books")
+                if hiddenBookIds.contains(bookId) {
+                    return false
+                }
+            }
+            
+            return true
         }
     }
     

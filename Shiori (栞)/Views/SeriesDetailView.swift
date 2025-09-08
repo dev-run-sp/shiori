@@ -66,6 +66,9 @@ struct SeriesDetailView: View {
     @State private var finishedBooksInSeries = 0
     @State private var currentlyReadingBooksInSeries = 0
     @State private var wantToReadBooksInSeries = 0
+    @State private var showingHiddenBooksManager = false
+    @State private var hiddenButtonTapCount = 0
+    @State private var lastHiddenButtonTapTime = Date()
     
     var body: some View {
         NavigationView {
@@ -272,8 +275,17 @@ struct SeriesDetailView: View {
             .navigationTitle(series.seriesName)
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(
-                leading: Button("Done") {
-                    dismiss()
+                leading: HStack {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    Button(action: {
+                        handleHiddenButtonTap()
+                    }) {
+                        Color.clear
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
+                    }
                 },
                 trailing: HStack {
                     if isMultiSelectMode {
@@ -347,6 +359,9 @@ struct SeriesDetailView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingHiddenBooksManager) {
+                HiddenBooksManagerView(series: series)
+            }
             .background(Color.customBackground)
         }
     }
@@ -364,7 +379,12 @@ struct SeriesDetailView: View {
     }
     
     private func loadBooksInSeries() {
-        allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        let allBooks = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        let hiddenBookIds = getHiddenBookIds()
+        allBooksInSeries = allBooks.filter { book in
+            guard let bookId = book.id else { return true }
+            return !hiddenBookIds.contains(bookId)
+        }
         loadSeriesStats()
         applyFilter()
     }
@@ -441,6 +461,28 @@ struct SeriesDetailView: View {
     
     private func loadManualOrder() {
         manualBookOrder = UserDefaults.standard.array(forKey: "manualOrder_\(series.seriesName)_\(series.bookType.rawValue)") as? [Int64] ?? []
+    }
+    
+    private func getHiddenBookIds() -> Set<Int64> {
+        let key = "hiddenBooks_\(series.seriesName)_\(series.bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        return Set(hiddenIds)
+    }
+    
+    private func handleHiddenButtonTap() {
+        let now = Date()
+        if now.timeIntervalSince(lastHiddenButtonTapTime) < 2.0 {
+            hiddenButtonTapCount += 1
+        } else {
+            hiddenButtonTapCount = 1
+        }
+        
+        lastHiddenButtonTapTime = now
+        
+        if hiddenButtonTapCount >= 5 {
+            showingHiddenBooksManager = true
+            hiddenButtonTapCount = 0
+        }
     }
     
     private var emptyStateTitle: String {
@@ -895,6 +937,156 @@ struct BulkSeriesSelectionSheet: View {
                 }
             )
         }
+    }
+}
+
+struct HiddenBooksManagerView: View {
+    let series: SeriesData
+    @State private var allBooksInSeries: [SavedBook] = []
+    @State private var hiddenBookIds: Set<Int64> = []
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if allBooksInSeries.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.6))
+                        
+                        Text("No Books Found")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("This series appears to be empty")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        Section("Visible Books") {
+                            ForEach(visibleBooks, id: \.id) { book in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(book.title)
+                                            .font(.headline)
+                                        if let author = book.author {
+                                            Text("by \(author)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        HStack {
+                                            Image(systemName: book.readingStatus.icon)
+                                                .font(.caption2)
+                                            Text(book.readingStatus.rawValue)
+                                                .font(.caption2)
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(book.readingStatus.color)
+                                        .cornerRadius(8)
+                                    }
+                                    Spacer()
+                                    Button("Hide") {
+                                        hideBook(book)
+                                    }
+                                    .foregroundColor(.red)
+                                }
+                            }
+                        }
+                        
+                        if !hiddenBooks.isEmpty {
+                            Section("Hidden Books") {
+                                ForEach(hiddenBooks, id: \.id) { book in
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(book.title)
+                                                .font(.headline)
+                                                .foregroundColor(.secondary)
+                                            if let author = book.author {
+                                                Text("by \(author)")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            HStack {
+                                                Image(systemName: book.readingStatus.icon)
+                                                    .font(.caption2)
+                                                Text(book.readingStatus.rawValue)
+                                                    .font(.caption2)
+                                            }
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(book.readingStatus.color.opacity(0.6))
+                                            .cornerRadius(8)
+                                        }
+                                        Spacer()
+                                        Button("Show") {
+                                            unhideBook(book)
+                                        }
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Book Visibility")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    dismiss()
+                }
+            )
+            .onAppear {
+                loadAllBooks()
+            }
+        }
+    }
+    
+    private var visibleBooks: [SavedBook] {
+        allBooksInSeries.filter { book in
+            guard let bookId = book.id else { return true }
+            return !hiddenBookIds.contains(bookId)
+        }
+    }
+    
+    private var hiddenBooks: [SavedBook] {
+        allBooksInSeries.filter { book in
+            guard let bookId = book.id else { return false }
+            return hiddenBookIds.contains(bookId)
+        }
+    }
+    
+    private func loadAllBooks() {
+        allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+        let key = "hiddenBooks_\(series.seriesName)_\(series.bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        hiddenBookIds = Set(hiddenIds)
+    }
+    
+    private func hideBook(_ book: SavedBook) {
+        guard let bookId = book.id else { return }
+        hiddenBookIds.insert(bookId)
+        saveHiddenBooks()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+    }
+    
+    private func unhideBook(_ book: SavedBook) {
+        guard let bookId = book.id else { return }
+        hiddenBookIds.remove(bookId)
+        saveHiddenBooks()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+    }
+    
+    private func saveHiddenBooks() {
+        let key = "hiddenBooks_\(series.seriesName)_\(series.bookType.rawValue)"
+        UserDefaults.standard.set(Array(hiddenBookIds), forKey: key)
     }
 }
 
