@@ -182,27 +182,60 @@ struct HomePageView: View {
         // Load library statistics
         libraryStats = generateLibraryStats()
         
-        // Load currently reading books
-        let allCurrentlyReading = DatabaseManager.shared.getBooks(by: .english).filter { $0.readingStatus == .currentlyReading } +
-                                 DatabaseManager.shared.getBooks(by: .japanese).filter { $0.readingStatus == .currentlyReading } +
-                                 DatabaseManager.shared.getBooks(by: .manga).filter { $0.readingStatus == .currentlyReading }
+        // Load currently reading books (filtered by visible series)
+        let englishCurrentlyReading = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .english), bookType: .english).filter { $0.readingStatus == .currentlyReading }
+        let japaneseCurrentlyReading = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .japanese), bookType: .japanese).filter { $0.readingStatus == .currentlyReading }
+        let mangaCurrentlyReading = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .manga), bookType: .manga).filter { $0.readingStatus == .currentlyReading }
         
+        let allCurrentlyReading = englishCurrentlyReading + japaneseCurrentlyReading + mangaCurrentlyReading
         currentlyReading = Array(allCurrentlyReading.prefix(5))
         
-        // Load recent books (last 10 added)
-        let allBooks = DatabaseManager.shared.getBooks(by: .english) +
-                      DatabaseManager.shared.getBooks(by: .japanese) +
-                      DatabaseManager.shared.getBooks(by: .manga)
+        // Load recent books (filtered by visible series)
+        let englishBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .english), bookType: .english)
+        let japaneseBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .japanese), bookType: .japanese)
+        let mangaBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .manga), bookType: .manga)
         
+        let allBooks = englishBooks + japaneseBooks + mangaBooks
         recentBooks = Array(allBooks
             .sorted { $0.dateAdded > $1.dateAdded }
             .prefix(6))
     }
     
+    private func getHiddenSeriesNames(for bookType: BookType) -> Set<String> {
+        let key = "hiddenSeries_\(bookType.rawValue)"
+        return Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+    
+    private func getHiddenBookIds(for bookType: BookType, seriesName: String) -> Set<Int64> {
+        let key = "hiddenBooks_\(seriesName)_\(bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        return Set(hiddenIds)
+    }
+    
+    private func filterVisibleBooks(_ books: [SavedBook], bookType: BookType) -> [SavedBook] {
+        let hiddenSeriesNames = getHiddenSeriesNames(for: bookType)
+        return books.filter { book in
+            // Filter out books from hidden series
+            if hiddenSeriesNames.contains(book.series ?? "Standalone Books") {
+                return false
+            }
+            
+            // Filter out individually hidden books
+            if let bookId = book.id {
+                let hiddenBookIds = getHiddenBookIds(for: bookType, seriesName: book.series ?? "Standalone Books")
+                if hiddenBookIds.contains(bookId) {
+                    return false
+                }
+            }
+            
+            return true
+        }
+    }
+    
     private func generateLibraryStats() -> LibraryStats {
-        let englishBooks = DatabaseManager.shared.getBooks(by: .english)
-        let japaneseBooks = DatabaseManager.shared.getBooks(by: .japanese)
-        let mangaBooks = DatabaseManager.shared.getBooks(by: .manga)
+        let englishBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .english), bookType: .english)
+        let japaneseBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .japanese), bookType: .japanese)
+        let mangaBooks = filterVisibleBooks(DatabaseManager.shared.getBooks(by: .manga), bookType: .manga)
         
         let allBooks = englishBooks + japaneseBooks + mangaBooks
         

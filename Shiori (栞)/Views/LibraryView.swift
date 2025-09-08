@@ -17,6 +17,9 @@ struct LibraryView: View {
     @State private var finishedBooks = 0
     @State private var currentlyReadingBooks = 0
     @State private var wantToReadBooks = 0
+    @State private var showingHiddenSeriesManager = false
+    @State private var titleTapCount = 0
+    @State private var lastTitleTapTime = Date()
     
     var body: some View {
         NavigationView {
@@ -73,6 +76,13 @@ struct LibraryView: View {
             .navigationTitle("\(bookType.rawValue) Books")
             .navigationBarTitleDisplayMode(.large)
             .navigationBarItems(
+                leading: Button(action: {
+                    handleSecretTitleTap()
+                }) {
+                    Color.clear
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                },
                 trailing: HStack(spacing: 16) {
                     Button(action: {
                         showingExportImport = true
@@ -111,6 +121,9 @@ struct LibraryView: View {
             .sheet(isPresented: $showingExportImport) {
                 ExportImportView()
             }
+            .sheet(isPresented: $showingHiddenSeriesManager) {
+                HiddenSeriesManagerView(bookType: bookType)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .bookUpdated)) { _ in
                 loadSeries()
             }
@@ -147,17 +160,90 @@ struct LibraryView: View {
     }
     
     private func loadSeries() {
-        seriesData = DatabaseManager.shared.getSeries(by: bookType)
+        let allSeries = DatabaseManager.shared.getSeries(by: bookType)
+        let hiddenSeriesNames = getHiddenSeriesNames()
+        let visibleSeries = allSeries.filter { !hiddenSeriesNames.contains($0.seriesName) }
+        
+        // Recalculate series stats excluding hidden individual books
+        seriesData = visibleSeries.map { series in
+            let allBooksInSeries = DatabaseManager.shared.getBooksInSeries(series.seriesName, bookType: series.bookType)
+            let hiddenBookIds = getHiddenBookIds(for: series.seriesName)
+            let visibleBooksInSeries = allBooksInSeries.filter { book in
+                guard let bookId = book.id else { return true }
+                return !hiddenBookIds.contains(bookId)
+            }
+            
+            let completedCount = visibleBooksInSeries.filter { $0.readingStatus == .finished }.count
+            let currentlyReadingCount = visibleBooksInSeries.filter { $0.readingStatus == .currentlyReading }.count
+            let wantToReadCount = visibleBooksInSeries.filter { $0.readingStatus == .wantToRead }.count
+            
+            return SeriesData(
+                seriesName: series.seriesName,
+                bookType: series.bookType,
+                bookCount: visibleBooksInSeries.count,
+                completedCount: completedCount,
+                currentlyReadingCount: currentlyReadingCount,
+                wantToReadCount: wantToReadCount,
+                lastBookThumbnail: series.lastBookThumbnail,
+                lastReadDate: series.lastReadDate
+            )
+        }
+        
         loadStats()
         print("DEBUG: LibraryView loaded \(seriesData.count) series for \(bookType.rawValue)")
     }
     
+    private func getHiddenBookIds(for seriesName: String) -> Set<Int64> {
+        let key = "hiddenBooks_\(seriesName)_\(bookType.rawValue)"
+        let hiddenIds = UserDefaults.standard.array(forKey: key) as? [Int64] ?? []
+        return Set(hiddenIds)
+    }
+    
     private func loadStats() {
-        let books = DatabaseManager.shared.getBooks(by: bookType)
-        totalBooks = books.count
-        finishedBooks = books.filter { $0.readingStatus == .finished }.count
-        currentlyReadingBooks = books.filter { $0.readingStatus == .currentlyReading }.count
-        wantToReadBooks = books.filter { $0.readingStatus == .wantToRead }.count
+        let allBooks = DatabaseManager.shared.getBooks(by: bookType)
+        let hiddenSeriesNames = getHiddenSeriesNames()
+        let visibleBooks = allBooks.filter { book in
+            // Filter out books from hidden series
+            if hiddenSeriesNames.contains(book.series ?? "Standalone Books") {
+                return false
+            }
+            
+            // Filter out individually hidden books
+            if let bookId = book.id {
+                let hiddenBookIds = getHiddenBookIds(for: book.series ?? "Standalone Books")
+                if hiddenBookIds.contains(bookId) {
+                    return false
+                }
+            }
+            
+            return true
+        }
+        
+        totalBooks = visibleBooks.count
+        finishedBooks = visibleBooks.filter { $0.readingStatus == .finished }.count
+        currentlyReadingBooks = visibleBooks.filter { $0.readingStatus == .currentlyReading }.count
+        wantToReadBooks = visibleBooks.filter { $0.readingStatus == .wantToRead }.count
+    }
+    
+    private func getHiddenSeriesNames() -> Set<String> {
+        let key = "hiddenSeries_\(bookType.rawValue)"
+        return Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+    
+    private func handleSecretTitleTap() {
+        let now = Date()
+        if now.timeIntervalSince(lastTitleTapTime) < 2.0 {
+            titleTapCount += 1
+        } else {
+            titleTapCount = 1
+        }
+        
+        lastTitleTapTime = now
+        
+        if titleTapCount >= 5 {
+            showingHiddenSeriesManager = true
+            titleTapCount = 0
+        }
     }
     
     private func markAllAsRead(in series: SeriesData) {
@@ -331,6 +417,121 @@ struct SeriesRow: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter
+    }
+}
+
+struct HiddenSeriesManagerView: View {
+    let bookType: BookType
+    @State private var allSeries: [SeriesData] = []
+    @State private var hiddenSeriesNames: Set<String> = []
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if allSeries.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.6))
+                        
+                        Text("No Series Found")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Add some books to create series")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        Section("Visible Series") {
+                            ForEach(visibleSeries, id: \.seriesName) { series in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(series.seriesName)
+                                            .font(.headline)
+                                        Text("\(series.bookCount) books")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Button("Hide") {
+                                        hideSeries(series.seriesName)
+                                    }
+                                    .foregroundColor(.red)
+                                }
+                            }
+                        }
+                        
+                        if !hiddenSeries.isEmpty {
+                            Section("Hidden Series") {
+                                ForEach(hiddenSeries, id: \.seriesName) { series in
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(series.seriesName)
+                                                .font(.headline)
+                                                .foregroundColor(.secondary)
+                                            Text("\(series.bookCount) books")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        Button("Show") {
+                                            unhideSeries(series.seriesName)
+                                        }
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Series Visibility")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Done") {
+                    dismiss()
+                }
+            )
+            .onAppear {
+                loadAllSeries()
+            }
+        }
+    }
+    
+    private var visibleSeries: [SeriesData] {
+        allSeries.filter { !hiddenSeriesNames.contains($0.seriesName) }
+    }
+    
+    private var hiddenSeries: [SeriesData] {
+        allSeries.filter { hiddenSeriesNames.contains($0.seriesName) }
+    }
+    
+    private func loadAllSeries() {
+        allSeries = DatabaseManager.shared.getSeries(by: bookType)
+        let key = "hiddenSeries_\(bookType.rawValue)"
+        hiddenSeriesNames = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+    
+    private func hideSeries(_ seriesName: String) {
+        hiddenSeriesNames.insert(seriesName)
+        saveHiddenSeries()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+    }
+    
+    private func unhideSeries(_ seriesName: String) {
+        hiddenSeriesNames.remove(seriesName)
+        saveHiddenSeries()
+        NotificationCenter.default.post(name: .bookUpdated, object: nil)
+    }
+    
+    private func saveHiddenSeries() {
+        let key = "hiddenSeries_\(bookType.rawValue)"
+        UserDefaults.standard.set(Array(hiddenSeriesNames), forKey: key)
     }
 }
 
